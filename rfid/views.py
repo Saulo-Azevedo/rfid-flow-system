@@ -395,25 +395,26 @@ from django.http import HttpResponse
 
 def criar_admin_temp(request):
     """View temporária para criar superusuário"""
-    if not User.objects.filter(username='admin').exists():
+    username = 'rfidadmin'  # ⬅️ NOME DIFERENTE
+    
+    if not User.objects.filter(username=username).exists():
         User.objects.create_superuser(
-            username='admin',
+            username=username,
             email='admin@rfidflow.com',
-            password='Admin@RFID2024!'
+            password='RFID@Admin2024!'
         )
-        return HttpResponse('''
+        return HttpResponse(f'''
             <h1>✅ Superusuário criado com sucesso!</h1>
-            <p><strong>Username:</strong> admin</p>
-            <p><strong>Password:</strong> Admin@RFID2024!</p>
+            <p><strong>Username:</strong> {username}</p>
+            <p><strong>Password:</strong> RFID@Admin2024!</p>
             <br>
             <a href="/admin/" style="padding: 10px 20px; background: #00D4FF; color: white; text-decoration: none; border-radius: 5px;">Ir para Admin</a>
             <br><br>
             <a href="/" style="padding: 10px 20px; background: #00E676; color: white; text-decoration: none; border-radius: 5px;">Ir para Login</a>
         ''')
-    return HttpResponse('''
-        <h1>⚠️ Superusuário já existe!</h1>
+    return HttpResponse(f'''
+        <h1>⚠️ Usuário {username} já existe!</h1>
+        <p>Tente fazer login com as credenciais anteriores</p>
         <br>
         <a href="/admin/" style="padding: 10px 20px; background: #00D4FF; color: white; text-decoration: none; border-radius: 5px;">Ir para Admin</a>
-        <br><br>
-        <a href="/" style="padding: 10px 20px; background: #00E676; color: white; text-decoration: none; border-radius: 5px;">Ir para Login</a>
     ''')
