@@ -390,3 +390,30 @@ def relatorios_api(request):
     return JsonResponse({'erro': 'Método não permitido'}, status=405)
 
 
+from django.contrib.auth.models import User
+from django.http import HttpResponse
+
+def criar_admin_temp(request):
+    """View temporária para criar superusuário"""
+    if not User.objects.filter(username='admin').exists():
+        User.objects.create_superuser(
+            username='admin',
+            email='admin@rfidflow.com',
+            password='Admin@RFID2024!'
+        )
+        return HttpResponse('''
+            <h1>✅ Superusuário criado com sucesso!</h1>
+            <p><strong>Username:</strong> admin</p>
+            <p><strong>Password:</strong> Admin@RFID2024!</p>
+            <br>
+            <a href="/admin/" style="padding: 10px 20px; background: #00D4FF; color: white; text-decoration: none; border-radius: 5px;">Ir para Admin</a>
+            <br><br>
+            <a href="/" style="padding: 10px 20px; background: #00E676; color: white; text-decoration: none; border-radius: 5px;">Ir para Login</a>
+        ''')
+    return HttpResponse('''
+        <h1>⚠️ Superusuário já existe!</h1>
+        <br>
+        <a href="/admin/" style="padding: 10px 20px; background: #00D4FF; color: white; text-decoration: none; border-radius: 5px;">Ir para Admin</a>
+        <br><br>
+        <a href="/" style="padding: 10px 20px; background: #00E676; color: white; text-decoration: none; border-radius: 5px;">Ir para Login</a>
+    ''')
