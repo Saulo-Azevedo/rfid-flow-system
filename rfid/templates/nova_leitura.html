@@ -1,0 +1,105 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Leitura - RFID Flow</title>
+    
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="card mb-3 fade-in">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    {% load static %}
+                    <img src="{% static 'img/logo.png' %}" 
+                         alt="RFID Flow" 
+                         style="height: 60px; object-fit: contain;"
+                         onerror="this.style.display='none';">
+                    <div>
+                        <h1 style="margin: 0; font-size: 1.8rem;">RFID FLOW</h1>
+                        <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Nova Leitura RFID</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Formulário -->
+        <div class="card slide-in">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" x2="12" y1="19" y2="22"></line>
+                    </svg>
+                    Registrar Leitura Manualmente
+                </h3>
+            </div>
+
+            {% if messages %}
+            <div style="margin-bottom: 20px;">
+                {% for message in messages %}
+                <div style="padding: 15px; margin-bottom: 10px; border-radius: 8px; {% if message.tags == 'success' %}background: rgba(0, 230, 118, 0.1); border: 1px solid var(--success); color: var(--success);{% else %}background: rgba(255, 61, 0, 0.1); border: 1px solid var(--danger); color: var(--danger);{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="id_tag_rfid">{{ form.tag_rfid.label }}</label>
+                    {{ form.tag_rfid }}
+                    {% if form.tag_rfid.help_text %}
+                    <small style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-top: 5px;">{{ form.tag_rfid.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="id_numero_serie">{{ form.numero_serie.label }}</label>
+                    {{ form.numero_serie }}
+                    {% if form.numero_serie.help_text %}
+                    <small style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-top: 5px;">{{ form.numero_serie.help_text }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="id_operador">{{ form.operador.label }}</label>
+                    {{ form.operador }}
+                </div>
+
+                <div class="form-group">
+                    <label for="id_observacao">{{ form.observacao.label }}</label>
+                    {{ form.observacao }}
+                </div>
+
+                <div class="flex gap-2" style="margin-top: 30px;">
+                    <button type="submit" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Registrar Leitura
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="19" x2="5" y1="12" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        Voltar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

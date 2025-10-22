@@ -1,0 +1,267 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios - RFID Flow</title>
+    
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="card mb-3 fade-in">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 style="margin-bottom: 5px;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
+                            <line x1="12" x2="12" y1="20" y2="10"></line>
+                            <line x1="18" x2="18" y1="20" y2="4"></line>
+                            <line x1="6" x2="6" y1="20" y2="16"></line>
+                        </svg>
+                        Relatórios e Análises
+                    </h1>
+                    <p style="color: var(--text-secondary); margin: 0;">Filtre e analise os dados dos botijões</p>
+                </div>
+                
+                <div class="update-indicator" id="updateIndicator">
+                    <div class="pulse-dot"></div>
+                    <span>Atualização ativa</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filtros -->
+        <div class="card mb-3 slide-in">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    Filtros
+                </h3>
+            </div>
+            
+            <form method="get" id="filterForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+                <div class="form-group" style="margin: 0;">
+                    <label for="id_status">{{ form.status.label }}</label>
+                    {{ form.status }}
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="id_data_inicio">{{ form.data_inicio.label }}</label>
+                    {{ form.data_inicio }}
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="id_data_fim">{{ form.data_fim.label }}</label>
+                    {{ form.data_fim }}
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    Filtrar
+                </button>
+            </form>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid slide-in" style="animation-delay: 0.1s;">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle;">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                        <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
+                    </svg>
+                    Botijões Filtrados
+                </div>
+                <div class="stat-value" id="totalFiltrado">{{ total_filtrado }}</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle;">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    Total de Leituras
+                </div>
+                <div class="stat-value" style="background: var(--gradient-secondary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" id="totalLeituras">{{ total_leituras }}</div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex gap-2 mb-3" style="flex-wrap: wrap;">
+            <a href="{% url 'exportar_excel' %}?tipo=botijoes" class="btn btn-success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                Exportar Excel
+            </a>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" x2="5" y1="12" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Voltar ao Dashboard
+            </a>
+        </div>
+        
+        <!-- Tabela -->
+        <div class="table-container fade-in" style="animation-delay: 0.2s;">
+            <div class="table-header">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3h7v7H3z"></path>
+                    <path d="M14 3h7v7h-7z"></path>
+                    <path d="M14 14h7v7h-7z"></path>
+                    <path d="M3 14h7v7H3z"></path>
+                </svg>
+                Resultados da Pesquisa
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tag RFID</th>
+                        <th>Nº Série</th>
+                        <th>Status</th>
+                        <th>Leituras</th>
+                        <th>Última Leitura</th>
+                        <th>Capacidade</th>
+                        <th>Cliente</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaRelatorios">
+                    {% for botijao in botijoes %}
+                    <tr>
+                        <td>
+                            <strong style="color: var(--primary);">{{ botijao.tag_rfid|truncatechars:20 }}</strong>
+                        </td>
+                        <td>{{ botijao.numero_serie|default:"-" }}</td>
+                        <td>
+                            <span class="badge badge-{{ botijao.status }}">
+                                {{ botijao.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ botijao.total_leituras }}</td>
+                        <td>
+                            {% if botijao.ultima_leitura %}
+                                {{ botijao.ultima_leitura|date:"d/m/Y H:i" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ botijao.capacidade|default:"-" }}</td>
+                        <td>{{ botijao.cliente|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 60px; color: var(--text-muted);">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" x2="12" y1="8" y2="12"></line>
+                                <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                            </svg>
+                            <h3 style="color: var(--text-secondary);">Nenhum resultado encontrado</h3>
+                            <p>Tente ajustar os filtros ou cadastre novos botijões</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        // ========== AJAX - ATUALIZAÇÃO AUTOMÁTICA ==========
+        
+        function getFiltrosAtuais() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                status: params.get('status') || '',
+                data_inicio: params.get('data_inicio') || '',
+                data_fim: params.get('data_fim') || ''
+            };
+        }
+        
+        async function atualizarDados() {
+            const indicator = document.getElementById('updateIndicator');
+            const dot = indicator.querySelector('.pulse-dot');
+            const text = indicator.querySelector('span');
+            
+            try {
+                indicator.classList.add('updating');
+                text.textContent = 'Atualizando...';
+                
+                const filtros = getFiltrosAtuais();
+                const queryString = new URLSearchParams(filtros).toString();
+                
+                const response = await fetch(`{% url "relatorios_api" %}?${queryString}`);
+                const data = await response.json();
+                
+                // Atualiza os cards
+                document.getElementById('totalFiltrado').textContent = data.total_filtrado;
+                document.getElementById('totalLeituras').textContent = data.total_leituras;
+                
+                // Atualiza a tabela
+                const tbody = document.getElementById('tabelaRelatorios');
+                
+                if (data.botijoes.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 60px; color: var(--text-muted);">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" x2="12" y1="8" y2="12"></line>
+                                    <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                                </svg>
+                                <h3 style="color: var(--text-secondary);">Nenhum resultado encontrado</h3>
+                                <p>Tente ajustar os filtros ou cadastre novos botijões</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = data.botijoes.map(b => `
+                        <tr>
+                            <td><strong style="color: var(--primary);">${b.tag_rfid}</strong></td>
+                            <td>${b.numero_serie}</td>
+                            <td>
+                                <span class="badge badge-${b.status}">
+                                    ${b.status_display}
+                                </span>
+                            </td>
+                            <td>${b.total_leituras}</td>
+                            <td>${b.ultima_leitura}</td>
+                            <td>${b.capacidade}</td>
+                            <td>${b.cliente}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                indicator.classList.remove('updating');
+                text.textContent = 'Atualização ativa';
+                
+            } catch (error) {
+                console.error('Erro ao atualizar:', error);
+                text.textContent = 'Erro na atualização';
+            }
+        }
+        
+        // Atualiza a cada 3 segundos
+        setInterval(atualizarDados, 3000);
+        setTimeout(atualizarDados, 3000);
+    </script>
+</body>
+</html>    

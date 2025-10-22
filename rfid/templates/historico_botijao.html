@@ -1,0 +1,238 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Leituras - RFID Flow</title>
+    
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="card mb-3 fade-in">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    {% load static %}
+                    <img src="{% static 'img/logo.png' %}" 
+                         alt="RFID Flow" 
+                         style="height: 60px; object-fit: contain;"
+                         onerror="this.style.display='none';">
+                    <div>
+                        <h1 style="margin: 0; font-size: 1.8rem;">RFID FLOW</h1>
+                        <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Histórico de Leituras RFID</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Filtros de Busca -->
+        <div class="card mb-3 slide-in">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    Filtros de Busca
+                </h3>
+            </div>
+
+            <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+                <div class="form-group" style="margin: 0;">
+                    <label for="tag_rfid">Tag RFID</label>
+                    <input type="text" 
+                           id="tag_rfid" 
+                           name="tag_rfid" 
+                           placeholder="Ex: E200..." 
+                           value="{{ request.GET.tag_rfid }}">
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="numero_serie">Número de Série</label>
+                    <input type="text" 
+                           id="numero_serie" 
+                           name="numero_serie" 
+                           placeholder="Ex: BT-001" 
+                           value="{{ request.GET.numero_serie }}">
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="data_inicio">Data Início</label>
+                    <input type="date" 
+                           id="data_inicio" 
+                           name="data_inicio" 
+                           value="{{ request.GET.data_inicio }}">
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="data_fim">Data Fim</label>
+                    <input type="date" 
+                           id="data_fim" 
+                           name="data_fim" 
+                           value="{{ request.GET.data_fim }}">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    Buscar
+                </button>
+            </form>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="flex gap-2 mb-3" style="flex-wrap: wrap;">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" x2="5" y1="12" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Voltar ao Dashboard
+            </a>
+            {% if botijao %}
+            <a href="{% url 'exportar_excel' %}?tag_rfid={{ botijao.tag_rfid }}" class="btn btn-success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                Exportar Excel
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Informações do Botijão -->
+        {% if botijao %}
+        <div class="card mb-3 fade-in" style="animation-delay: 0.2s; background: var(--gradient-primary); border: none;">
+            <div class="card-header" style="border: none; padding-bottom: 15px;">
+                <h3 class="card-title" style="color: white;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 16v-4"></path>
+                        <path d="M12 8h.01"></path>
+                    </svg>
+                    Informações do Botijão
+                </h3>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Tag RFID</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.tag_rfid }}</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Número de Série</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.numero_serie }}</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Cliente</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.cliente|default:"Não informado" }}</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Localização</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.localizacao|default:"Não informado" }}</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Capacidade</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.capacidade }} kg</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Status</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.get_status_display }}</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Última Leitura</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ botijao.ultima_leitura|date:"d/m/Y H:i" }}</span>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: var(--border-radius);">
+                    <strong style="display: block; margin-bottom: 8px; font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; color: white;">Total de Leituras</strong>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: white;">{{ leituras.count }}</span>
+                </div>
+            </div>
+
+            {% if botijao.observacao %}
+            <div style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: var(--border-radius);">
+                <strong style="display: block; margin-bottom: 8px; color: white;">📝 Observações:</strong>
+                <span style="color: white;">{{ botijao.observacao }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tabela de Histórico -->
+        {% if leituras %}
+        <div class="table-container fade-in" style="animation-delay: 0.3s;">
+            <div class="table-header">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                Histórico de Leituras
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Operador</th>
+                        <th>Localização</th>
+                        <th>Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leitura in leituras %}
+                    <tr>
+                        <td>{{ leitura.data_hora|date:"d/m/Y H:i:s" }}</td>
+                        <td>{{ leitura.operador|default:"Não informado" }}</td>
+                        <td>{{ leitura.localizacao|default:"Não informado" }}</td>
+                        <td>{{ leitura.observacao|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card fade-in" style="animation-delay: 0.3s;">
+            <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <h3 style="color: var(--text-secondary);">Nenhuma leitura encontrada</h3>
+                <p>Não há leituras para este botijão no período selecionado</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- Estado Vazio -->
+        <div class="card fade-in" style="animation-delay: 0.2s;">
+            <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                </svg>
+                <h3 style="color: var(--text-secondary);">Nenhuma busca realizada</h3>
+                <p>Use os filtros acima para buscar o histórico de um botijão</p>
+                <p style="margin-top: 10px; font-size: 0.9rem;">
+                    Digite a Tag RFID ou o Número de Série e clique em Buscar
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
