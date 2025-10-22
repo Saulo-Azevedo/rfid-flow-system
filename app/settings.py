@@ -8,7 +8,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY - Lendo direto do os.environ (funciona na Railway!)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+# ALLOWED_HOSTS - Configuração para Railway
+ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '*')
+if ALLOWED_HOSTS_ENV == '*':
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_ENV.split(',') if host.strip()]
+
+# Sempre permitir o domínio da Railway
+ALLOWED_HOSTS.append('.railway.app')
+ALLOWED_HOSTS.append('localhost')
+ALLOWED_HOSTS.append('127.0.0.1')
+
+print("=" * 60)
+print("🔍 DEBUG ALLOWED_HOSTS:")
+print(f"   ALLOWED_HOSTS_ENV: {ALLOWED_HOSTS_ENV}")
+print(f"   ALLOWED_HOSTS: {ALLOWED_HOSTS}")
+print(f"   DEBUG: {DEBUG}")
+print("=" * 60)
+
+# CSRF Trusted Origins
+CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-fd2d9.up.railway.app',
+    'https://*.railway.app',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -102,14 +127,14 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
-# SEGURANÇA EXTRA para Produção
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+# # SEGURANÇA EXTRA para Produção
+# if not DEBUG:
+#     SECURE_SSL_REDIRECT = True
+#     SESSION_COOKIE_SECURE = True
+#     CSRF_COOKIE_SECURE = True
+#     SECURE_BROWSER_XSS_FILTER = True
+#     SECURE_CONTENT_TYPE_NOSNIFF = True
+#     X_FRAME_OPTIONS = 'DENY'
+#     SECURE_HSTS_SECONDS = 31536000
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+#     SECURE_HSTS_PRELOAD = True
