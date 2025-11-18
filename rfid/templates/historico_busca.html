@@ -1,0 +1,189 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar Histórico - RFID Flow</title>
+    
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="card mb-3 fade-in">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    {% load static %}
+                    <img src="{% static 'img/logo.png' %}" 
+                         alt="RFID Flow" 
+                         style="height: 60px; object-fit: contain;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div>
+                        <h1 style="margin: 0; font-size: 1.8rem;">RFID FLOW</h1>
+                        <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Industry 4.0 - Gestão Inteligente de Botijões</p>
+                    </div>
+                </div>
+                
+                <div class="update-indicator" id="updateIndicator">
+                    <div class="pulse-dot"></div>
+                    <span>Sistema ativo</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Busca -->
+        <div class="card mb-3 slide-in">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    Buscar Histórico de Botijões
+                </h3>
+            </div>
+            
+            <form method="get" style="padding: 20px;">
+                <div style="display: flex; gap: 10px;">
+                    <input 
+                        type="text" 
+                        name="q" 
+                        value="{{ query }}"
+                        placeholder="Digite a Tag RFID ou Número de Série..."
+                        style="flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-size: 1rem;"
+                        autofocus
+                    >
+                    <button type="submit" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </svg>
+                        Buscar
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="19" x2="5" y1="12" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        Voltar
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Resultados -->
+        {% if query %}
+            {% if resultados %}
+                <div class="card fade-in" style="animation-delay: 0.1s;">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            📊 {{ total_encontrados }} resultado{{ total_encontrados|pluralize }} encontrado{{ total_encontrados|pluralize }}
+                        </h3>
+                    </div>
+
+                    {% for resultado in resultados %}
+                        <div style="padding: 20px; border-bottom: 1px solid var(--border-color);">
+                            <!-- Info do Botijão -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 15px; background: rgba(0, 212, 255, 0.05); border-radius: 8px;">
+                                <div>
+                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Tag RFID</label>
+                                    <strong style="color: var(--primary); font-size: 1.1rem;">{{ resultado.botijao.tag_rfid }}</strong>
+                                </div>
+                                <div>
+                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Nº Série</label>
+                                    <span style="color: var(--text-primary);">{{ resultado.botijao.numero_serie }}</span>
+                                </div>
+                                <div>
+                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Fabricante</label>
+                                    <span style="color: var(--text-primary);">{{ resultado.botijao.fabricante }}</span>
+                                </div>
+                                <div>
+                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Status</label>
+                                    <span class="badge badge-{{ resultado.botijao.status }}">{{ resultado.botijao.status_display }}</span>
+                                </div>
+                                <div>
+                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Total de Leituras</label>
+                                    <span style="color: var(--secondary); font-weight: 600;">{{ resultado.total_leituras }}</span>
+                                </div>
+                                <div>
+                                    <a href="{% url 'historico_botijao' resultado.botijao.id %}" class="btn btn-primary" style="width: 100%; margin-top: 18px;">
+                                        Ver Histórico Completo
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Últimas Leituras -->
+                            {% if resultado.leituras %}
+                                <h4 style="color: var(--text-primary); margin-bottom: 15px; font-size: 1rem;">
+                                    📅 Últimas 10 Leituras
+                                </h4>
+                                
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: rgba(0, 212, 255, 0.1);">
+                                                <th style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color);">Data/Hora</th>
+                                                <th style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color);">Operador</th>
+                                                <th style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color);">Observação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for leitura in resultado.leituras %}
+                                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                                    <td style="padding: 12px; color: var(--text-primary);">{{ leitura.data_hora }}</td>
+                                                    <td style="padding: 12px; color: var(--text-primary);">{{ leitura.operador }}</td>
+                                                    <td style="padding: 12px; color: var(--text-secondary);">{{ leitura.observacao }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                    <p>Nenhuma leitura registrada ainda</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <!-- Nenhum resultado -->
+                <div class="card fade-in" style="animation-delay: 0.1s;">
+                    <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" x2="12" y1="8" y2="12"></line>
+                            <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                        </svg>
+                        <h3 style="color: var(--text-secondary);">Nenhum botijão encontrado</h3>
+                        <p>Não encontramos nenhum botijão com: <strong>{{ query }}</strong></p>
+                        <p style="margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+                            Dicas:
+                            <br>• Verifique se digitou corretamente
+                            <br>• Tente buscar pela Tag RFID completa
+                            <br>• Tente buscar pelo Número de Série
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- Estado inicial - sem busca -->
+            <div class="card fade-in" style="animation-delay: 0.1s;">
+                <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    <h3 style="color: var(--text-secondary);">Digite para buscar</h3>
+                    <p>Use o campo acima para buscar por Tag RFID ou Número de Série</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

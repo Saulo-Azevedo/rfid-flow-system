@@ -1,6 +1,15 @@
+# rfid/models.py - MODELO AJUSTADO
+import uuid
 from django.db import models
 from django.utils import timezone
-import uuid
+from django.contrib.auth.models import User
+
+
+class BotijaoManager(models.Manager):
+    """Manager customizado que exclui registros deletados"""
+    def get_queryset(self):
+        return super().get_queryset().filter(deletado=False)
+
 
 class Botijao(models.Model):
     STATUS_CHOICES = [
@@ -9,23 +18,31 @@ class Botijao(models.Model):
         ('manutencao', 'Em Manutenção'),
     ]
     
-    # Identificação
-    tag_rfid = models.CharField(max_length=100, unique=True, verbose_name='Tag RFID')
-    numero_serie = models.CharField(
-        max_length=50, 
+    STATUS_REQUALIFICACAO_CHOICES = [
+        ('em_dia', 'Em Dia'),
+        ('proximo_vencimento', 'Próximo ao Vencimento'),
+        ('vencida', 'Vencida'),
+        ('pendente', 'Pendente'),
+    ]
+    
+    # === IDENTIFICAÇÃO ===
+    tag_rfid = models.CharField(
+        max_length=200, 
         unique=True, 
-        blank=True,
-        verbose_name='Número de Série',
-        help_text='Gerado automaticamente se não informado'
+        verbose_name='Tag RFID',
+        help_text='Código único da tag RFID'
     )
     
-    # Características
-    capacidade = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2, 
-        default=13.0, 
-        verbose_name='Capacidade (kg)'
+    # ⚠️ AJUSTE 1: Número de série NÃO é mais gerado automaticamente
+    numero_serie = models.CharField(
+        max_length=100, 
+        unique=True, 
+        blank=True,  # Permite vazio
+        null=True,   # Permite NULL no banco
+        verbose_name='Número de Série',
+        help_text='Número de série do botijão (informar manualmente)'
     )
+    
     status = models.CharField(
         max_length=20, 
         choices=STATUS_CHOICES, 
@@ -33,83 +50,238 @@ class Botijao(models.Model):
         verbose_name='Status'
     )
     
-    # Localização e Cliente
+    # ⚠️ AJUSTE 2: Capacidade SEM valor padrão
+    capacidade = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        verbose_name='Capacidade (kg)',
+        blank=True,  # Campo opcional
+        null=True,   # Permite NULL
+        help_text='Capacidade em kg (ex: 13.00, 20.00, 45.00)'
+        # REMOVIDO: default=13.0
+    )
+    
+    # === LOCALIZAÇÃO E CLIENTE ===
     cliente = models.CharField(
         max_length=200, 
         blank=True, 
-        null=True,
+        null=True, 
         verbose_name='Cliente',
         help_text='Nome do cliente ou empresa'
     )
+    
     localizacao = models.CharField(
         max_length=200, 
         blank=True, 
-        null=True,
-        verbose_name='Localização Atual',
-        help_text='Local físico onde o botijão se encontra'
+        null=True, 
+        verbose_name='Localização',
+        help_text='Endereço ou localização atual do botijão'
     )
     
-    # Observações
     observacao = models.TextField(
         blank=True, 
-        null=True,
+        null=True, 
         verbose_name='Observações',
         help_text='Informações adicionais sobre o botijão'
     )
     
-    # Datas
+    # === DATAS ===
     data_cadastro = models.DateTimeField(
         auto_now_add=True, 
         verbose_name='Data de Cadastro'
     )
-    ultima_leitura = models.DateTimeField(
-        null=True, 
-        blank=True, 
-        verbose_name='Última Leitura'
+    
+    data_atualizacao = models.DateTimeField(
+        auto_now=True, 
+        verbose_name='Última Atualização'
     )
     
-    # Auditoria - Soft Delete
-    deletado = models.BooleanField(default=False, verbose_name='Deletado')
-    data_delecao = models.DateTimeField(null=True, blank=True, verbose_name='Data de Exclusão')
-    deletado_por = models.ForeignKey(
-        'auth.User', 
-        on_delete=models.SET_NULL, 
+    # === CAMPOS REGULATÓRIOS ANP ===
+    fabricante = models.CharField(
+        max_length=200, 
+        blank=True, 
         null=True, 
+        verbose_name='Fabricante'
+    )
+    
+    ano_fabricacao = models.IntegerField(
+        blank=True, 
+        null=True, 
+        verbose_name='Ano de Fabricação'
+    )
+    
+    data_ultima_requalificacao = models.DateField(
+        blank=True, 
+        null=True, 
+        verbose_name='Última Requalificação'
+    )
+    
+    data_proxima_requalificacao = models.DateField(
+        blank=True, 
+        null=True, 
+        verbose_name='Próxima Requalificação'
+    )
+    
+    status_requalificacao = models.CharField(
+        max_length=20,
+        choices=STATUS_REQUALIFICACAO_CHOICES,
+        default='pendente',
+        verbose_name='Status Requalificação'
+    )
+    
+    certificado_inmetro = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Certificado INMETRO'
+    )
+    
+    # === INFORMAÇÕES OPERACIONAIS ===
+    peso_vazio = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Peso Vazio (kg)',
+        help_text='Peso do botijão vazio (tara)'
+    )
+    
+    peso_cheio = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Peso Cheio (kg)',
+        help_text='Peso do botijão cheio'
+    )
+    
+    pressao_teste = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Pressão de Teste (bar)',
+        help_text='Pressão de teste hidrostático'
+    )
+    
+    lote_fabricacao = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name='Lote de Fabricação'
+    )
+    
+    # === ESTATÍSTICAS (calculadas) ===
+    total_leituras = models.IntegerField(
+        default=0,
+        verbose_name='Total de Leituras',
+        help_text='Contador automático de leituras'
+    )
+    
+    total_enchimentos = models.IntegerField(
+        default=0,
+        verbose_name='Total de Enchimentos',
+        help_text='Número de vezes que foi enchido'
+    )
+    
+    total_km_percorridos = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='KM Percorridos',
+        help_text='Estimativa de distância percorrida'
+    )
+    
+    # === SOFT DELETE ===
+    deletado = models.BooleanField(
+        default=False, 
+        verbose_name='Deletado'
+    )
+    
+    data_delecao = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        verbose_name='Data de Exclusão'
+    )
+    
+    deletado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         related_name='botijoes_deletados',
         verbose_name='Deletado por'
     )
-    motivo_delecao = models.TextField(blank=True, null=True, verbose_name='Motivo da Exclusão')
+    
+    motivo_delecao = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name='Motivo da Exclusão'
+    )
+    
+    # === MANAGERS ===
+    objects = BotijaoManager()  # Manager padrão (sem deletados)
+    all_objects = models.Manager()  # Manager que retorna tudo
     
     class Meta:
         verbose_name = 'Botijão'
         verbose_name_plural = 'Botijões'
         ordering = ['-data_cadastro']
+        indexes = [
+            models.Index(fields=['tag_rfid']),
+            models.Index(fields=['numero_serie']),
+            models.Index(fields=['status', 'deletado']),
+            models.Index(fields=['data_proxima_requalificacao']),
+        ]
     
     def __str__(self):
-        return f"{self.tag_rfid} - {self.numero_serie or 'S/N'}"
+        return f"{self.tag_rfid} - {self.numero_serie or 'Sem série'}"
     
-    def save(self, *args, **kwargs):
-        # Gera número de série automaticamente se não informado
-        if not self.numero_serie:
-            # Formato: BT-ANO-UUID (8 primeiros caracteres)
-            ano = timezone.now().year
-            uuid_part = str(uuid.uuid4())[:8].upper()
-            self.numero_serie = f"BT-{ano}-{uuid_part}"
-        super().save(*args, **kwargs)
+    # ⚠️ AJUSTE 1: REMOVIDO o método save() que gerava número de série automático
+    # Agora o número de série deve ser informado manualmente
     
     @property
-    def historico(self):
-        """Retorna todas as leituras deste botijão"""
-        return self.leituras.all().order_by('-data_hora')
+    def ultima_leitura(self):
+        """Retorna a última leitura deste botijão"""
+        leitura = self.leituras.order_by('-data_hora').first()
+        return leitura.data_hora if leitura else None
     
-    def soft_delete(self, user=None, motivo=''):
-        """Marca o botijão como deletado sem remover do banco"""
+    @property
+    def dias_para_requalificacao(self):
+        """Calcula quantos dias faltam para a requalificação"""
+        if not self.data_proxima_requalificacao:
+            return None
+        
+        delta = self.data_proxima_requalificacao - timezone.now().date()
+        return delta.days
+    
+    @property
+    def requalificacao_vencida(self):
+        """Verifica se a requalificação está vencida"""
+        if not self.data_proxima_requalificacao:
+            return False
+        
+        return timezone.now().date() > self.data_proxima_requalificacao
+    
+    def atualizar_status_requalificacao(self):
+        """Atualiza automaticamente o status de requalificação"""
+        if not self.data_proxima_requalificacao:
+            self.status_requalificacao = 'pendente'
+        elif self.requalificacao_vencida:
+            self.status_requalificacao = 'vencida'
+        elif self.dias_para_requalificacao <= 90:  # 90 dias antes
+            self.status_requalificacao = 'proximo_vencimento'
+        else:
+            self.status_requalificacao = 'em_dia'
+        
+        self.save(update_fields=['status_requalificacao'])
+    
+    def deletar(self, usuario, motivo=''):
+        """Realiza soft delete do botijão"""
         self.deletado = True
         self.data_delecao = timezone.now()
-        self.deletado_por = user
+        self.deletado_por = usuario
         self.motivo_delecao = motivo
-        self.status = 'inativo'
         self.save()
     
     def restaurar(self):
@@ -117,138 +289,169 @@ class Botijao(models.Model):
         self.deletado = False
         self.data_delecao = None
         self.deletado_por = None
-        self.motivo_delecao = None
-        self.status = 'ativo'
+        self.motivo_delecao = ''
         self.save()
+
+
+class LeituraRFID(models.Model):
+    """Modelo para registrar cada leitura RFID"""
     
-    def registrar_leitura(self, operador='', observacao='', localizacao='', request=None):
-        """Registra uma nova leitura para este botijão"""
-        from .utils.audit_log import registrar_leitura_rfid
-        
-        # Verifica duplicação (mesma tag em menos de 5 segundos)
-        ultimo = self.leituras.first()
-        if ultimo:
-            diff = timezone.now() - ultimo.data_hora
-            if diff.total_seconds() < 5:
-                return ultimo  # Retorna a leitura anterior (deduplicação)
-        
-        # Atualiza localização do botijão se informada
-        if localizacao:
-            self.localizacao = localizacao
-            self.save(update_fields=['localizacao'])
-        
-        # Cria nova leitura
-        leitura = Leitura.objects.create(
-            botijao=self,
-            tag_rfid=self.tag_rfid,
-            operador=operador,
-            observacao=observacao,
-            localizacao=localizacao or self.localizacao or ''
-        )
-        
-        # Atualiza última leitura do botijão
-        self.ultima_leitura = leitura.data_hora
-        self.save(update_fields=['ultima_leitura'])
-        
-        # Registra no log de auditoria
-        registrar_leitura_rfid(
-            usuario=None,
-            objeto=leitura,
-            detalhes=f'Leitura RFID do botijão {self.tag_rfid}. Operador: {operador or "Não informado"}. Local: {localizacao or "Não informado"}',
-            request=request
-        )
-        
-        return leitura
-    
-    @property
-    def total_leituras(self):
-        """Retorna o total de leituras deste botijão"""
-        return self.leituras.count() 
-        
-class Leitura(models.Model):
-    """Histórico de leituras RFID"""
-    
-    botijao = models.ForeignKey(Botijao, on_delete=models.CASCADE, related_name='leituras')
-    tag_rfid = models.CharField(max_length=50, db_index=True, verbose_name='Tag RFID')
-    data_hora = models.DateTimeField(auto_now_add=True, verbose_name='Data/Hora')
-    operador = models.CharField(max_length=100, blank=True, verbose_name='Operador')
-    localizacao = models.CharField(
-        max_length=200, 
-        blank=True, 
-        null=True,
-        verbose_name='Localização',
-        help_text='Local onde a leitura foi realizada'
+    botijao = models.ForeignKey(
+        Botijao,
+        on_delete=models.CASCADE,
+        related_name='leituras',
+        verbose_name='Botijão'
     )
-    observacao = models.TextField(blank=True, verbose_name='Observação')
+    
+    data_hora = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data/Hora da Leitura'
+    )
+    
+    operador = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Operador',
+        help_text='Nome do operador que fez a leitura'
+    )
+    
+    localizacao_leitura = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='Localização da Leitura',
+        help_text='Local onde foi feita a leitura'
+    )
+    
+    observacao = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Observações',
+        help_text='Observações sobre esta leitura específica'
+    )
+    
+    # Dados técnicos da leitura RFID
+    rssi = models.IntegerField(
+        blank=True,
+        null=True,
+        verbose_name='RSSI',
+        help_text='Força do sinal RFID'
+    )
+    
+    antena = models.IntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Antena',
+        help_text='Número da antena que fez a leitura'
+    )
+    
+    leitor_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='ID do Leitor',
+        help_text='Identificador do dispositivo leitor'
+    )
     
     class Meta:
+        verbose_name = 'Leitura RFID'
+        verbose_name_plural = 'Leituras RFID'
         ordering = ['-data_hora']
-        verbose_name = "Leitura"
-        verbose_name_plural = "Leituras"
         indexes = [
+            models.Index(fields=['botijao', '-data_hora']),
             models.Index(fields=['-data_hora']),
-            models.Index(fields=['tag_rfid']),
         ]
     
     def __str__(self):
-        return f"{self.tag_rfid[:15]}... - {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
-
-class ConfiguracaoSistema(models.Model):
-    """Configurações gerais do sistema"""
-    
-    email_relatorios = models.EmailField(blank=True, verbose_name="Email para Relatórios")
-    enviar_relatorio_diario = models.BooleanField(default=False, verbose_name="Enviar Relatório Diário")
-    alerta_dias_sem_leitura = models.IntegerField(default=30, verbose_name="Alerta - Dias sem Leitura")
-    
-    class Meta:
-        verbose_name = "Configuração do Sistema"
-        verbose_name_plural = "Configurações do Sistema"
-    
-    def __str__(self):
-        return "Configurações do Sistema"
+        return f"{self.botijao.tag_rfid} - {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
     
     def save(self, *args, **kwargs):
-        self.pk = 1
+        """Incrementa contador de leituras do botijão"""
+        is_new = self.pk is None
         super().save(*args, **kwargs)
-    
-    @classmethod
-    def get_config(cls):
-        config, created = cls.objects.get_or_create(pk=1)
-        return config
+        
+        if is_new:
+            # Incrementa total de leituras
+            self.botijao.total_leituras += 1
+            self.botijao.save(update_fields=['total_leituras'])
+
 
 class LogAuditoria(models.Model):
+    """Log de auditoria para rastrear ações importantes"""
+    
     ACAO_CHOICES = [
-        ('criar', 'Criado'),
-        ('editar', 'Editado'),
-        ('deletar', 'Deletado'),
-        ('restaurar', 'Restaurado'),
+        ('criar', 'Criar'),
+        ('atualizar', 'Atualizar'),
+        ('deletar', 'Deletar'),
+        ('restaurar', 'Restaurar'),
         ('leitura', 'Leitura RFID'),
     ]
     
+    botijao = models.ForeignKey(
+        Botijao,
+        on_delete=models.CASCADE,
+        related_name='logs',
+        verbose_name='Botijão'
+    )
+    
+    acao = models.CharField(
+        max_length=20,
+        choices=ACAO_CHOICES,
+        verbose_name='Ação'
+    )
+    
     usuario = models.ForeignKey(
-        'auth.User', 
-        on_delete=models.SET_NULL, 
-        null=True, 
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         verbose_name='Usuário'
     )
-    acao = models.CharField(max_length=20, choices=ACAO_CHOICES, verbose_name='Ação')
-    modelo = models.CharField(max_length=100, verbose_name='Modelo')
-    objeto_id = models.IntegerField(verbose_name='ID do Objeto')
-    objeto_repr = models.CharField(max_length=200, verbose_name='Representação do Objeto')
-    detalhes = models.TextField(blank=True, null=True, verbose_name='Detalhes')
-    data_hora = models.DateTimeField(auto_now_add=True, verbose_name='Data/Hora')
-    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='Endereço IP')
+    
+    data_hora = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data/Hora'
+    )
+    
+    descricao = models.TextField(
+        verbose_name='Descrição'
+    )
+    
+    dados_anteriores = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='Dados Anteriores',
+        help_text='Estado anterior do objeto (JSON)'
+    )
+    
+    dados_novos = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='Dados Novos',
+        help_text='Novo estado do objeto (JSON)'
+    )
     
     class Meta:
         verbose_name = 'Log de Auditoria'
         verbose_name_plural = 'Logs de Auditoria'
         ordering = ['-data_hora']
         indexes = [
-            models.Index(fields=['-data_hora']),
-            models.Index(fields=['modelo', 'objeto_id']),
+            models.Index(fields=['botijao', '-data_hora']),
+            models.Index(fields=['acao', '-data_hora']),
         ]
     
     def __str__(self):
-        usuario_nome = self.usuario.username if self.usuario else 'Sistema'
-        return f"{self.get_acao_display()} - {self.modelo} #{self.objeto_id} por {usuario_nome}"
+        return f"{self.acao} - {self.botijao.tag_rfid} - {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
+    
+    @classmethod
+    def criar_log(cls, botijao, acao, usuario=None, descricao='', dados_anteriores=None, dados_novos=None):
+        """Método helper para criar logs"""
+        return cls.objects.create(
+            botijao=botijao,
+            acao=acao,
+            usuario=usuario,
+            descricao=descricao,
+            dados_anteriores=dados_anteriores,
+            dados_novos=dados_novos
+        )
