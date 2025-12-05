@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container mt-5">
+
+    <h2 class="text-white mb-4">Importar Arquivo de Leituras</h2>
+
+    <div class="card p-4" style="background:rgba(20,20,20,0.7);">
+        
+        <form method="post" enctype="multipart/form-data" action="{% url 'preview_import' %}">
+            {% csrf_token %}
+
+            <label class="form-label text-white">Selecione o arquivo XLS exportado do coletor:</label>
+
+            <input type="file" name="arquivo" class="form-control mb-3" required>
+
+            <button class="btn btn-primary">Pré-visualizar Dados</button>
+
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary ms-2">
+                Voltar ao Dashboard
+            </a>
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

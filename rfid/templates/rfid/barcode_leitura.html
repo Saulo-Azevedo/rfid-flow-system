@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+/* ======================= */
+/*     VISUAL PREMIUM      */
+/* ======================= */
+
+.page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+}
+
+.logo-title {
+    height: 42px;
+    width: auto;
+}
+
+.card-rfid {
+    background: rgba(17, 17, 17, 0.75);
+    border: 1px solid #1f2937;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    transition: 0.25s ease;
+}
+
+.card-rfid:hover {
+    transform: translateY(-3px);
+}
+
+/* ÚLTIMO CÓDIGO */
+.campo-ultimo-codigo {
+    font-size: 32px;
+    padding: 18px;
+    border-radius: 10px;
+    background: #020617;
+    border: 1px solid #0ea5e955;
+    color: #38bdf8;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 1px;
+    animation: pulseCode 0.3s ease-in-out;
+}
+
+@keyframes pulseCode {
+    from { transform: scale(1.03); }
+    to   { transform: scale(1.00); }
+}
+
+/* SUB LABEL */
+.sub-label {
+    font-size: 14px;
+    color: #9ca3af;
+    text-align: center;
+    margin-top: 6px;
+}
+
+/* CONTADOR */
+.badge-contador {
+    font-size: 15px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: #022c22;
+    color: #6ee7b7;
+    font-weight: 600;
+    border: 1px solid #065f46;
+}
+
+/* TABELA */
+.table thead th {
+    background: #111827;
+    color: #e5e7eb;
+    border-bottom: 2px solid #38bdf8;
+    font-size: 15px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.table tbody tr {
+    background: #0f172a;
+    color: #d1d5db;
+    border-bottom: 1px solid #1e293b;
+}
+
+.table tbody tr:hover {
+    background: #1e293b;
+    transition: 0.2s;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+    .page-title { font-size: 22px; }
+    .campo-ultimo-codigo { font-size: 24px; }
+    .badge-contador { font-size: 14px; }
+}
+</style>
+
+
+<!-- ===================== -->
+<!--      CABEÇALHO        -->
+<!-- ===================== -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <img src="{% static 'img/logo.png' %}" class="logo-title" alt="RFID Flow">
+    <h2 class="page-title">Leitura de Código de Barras</h2>
+</div>
+
+<p class="text-muted mb-4">
+    Acompanhe em tempo real as leituras enviadas automaticamente pelo PDA.
+</p>
+
+
+<!-- ============================ -->
+<!--      ÚLTIMO CÓDIGO + INFO    -->
+<!-- ============================ -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-3">
+        <div class="card-rfid">
+            <div class="text-muted mb-2">Último código recebido</div>
+
+            <div id="ultimo-codigo" class="campo-ultimo-codigo">
+                Aguardando leituras...
+            </div>
+
+            <div class="sub-label">
+                O PDA envia automaticamente via ADB/IME.
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-3">
+        <div class="card-rfid text-center d-flex flex-column justify-content-center">
+            <div class="text-muted mb-2">Resumo do dia</div>
+
+            <span class="badge-contador">
+                <i class="bi bi-barcode"></i>
+                <span id="total-hoje">0 leituras</span>
+            </span>
+        </div>
+    </div>
+</div>
+
+
+<!-- ============================ -->
+<!--      TABELA DE LEITURAS      -->
+<!-- ============================ -->
+<div class="card-rfid">
+    <h5 class="mb-3" style="color:#e2e8f0;">Últimas leituras</h5>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Origem</th>
+                    <th>Operador</th>
+                    <th>Observação</th>
+                    <th>Data/Hora</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-leituras">
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        Nenhuma leitura registrada ainda.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function atualizarDashboardBarcode() {
+    try {
+        const resp = await fetch("/api/barcode/dashboard/");
+        if (!resp.ok) return;
+
+        const data = await resp.json();
+        if (!data.success) return;
+
+        // Último Código
+        const ultimoCodigoEl = document.getElementById("ultimo-codigo");
+        ultimoCodigoEl.textContent = data.ultimo_codigo || "Aguardando leituras...";
+
+        // Total Hoje
+        document.getElementById("total-hoje").textContent =
+            `${data.total_hoje} leituras`;
+
+        // Tabela
+        const tbody = document.getElementById("tabela-leituras");
+        tbody.innerHTML = "";
+
+        if (!data.leituras || data.leituras.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        Nenhuma leitura registrada ainda.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        data.leituras.forEach(l => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${l.codigo}</td>
+                <td>${l.origem}</td>
+                <td>${l.operador}</td>
+                <td>${l.observacao}</td>
+                <td>${l.data_hora}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+    } catch(e) {
+        console.error("Erro ao atualizar dashboard:", e);
+    }
+}
+
+setInterval(atualizarDashboardBarcode, 2000);
+atualizarDashboardBarcode();
+</script>
+{% endblock %}

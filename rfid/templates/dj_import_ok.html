@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2>Importação concluída</h2>
+
+    <p><strong>Total de leituras importadas:</strong> {{ qtd }}</p>
+    <p><strong>Novos botijões criados:</strong> {{ novos_botijoes }}</p>
+    <p><strong>Duplicados ignorados:</strong> {{ duplicados_ignorados }}</p>
+
+    {% if erros %}
+    <h4 class="mt-4">Erros encontrados:</h4>
+    <ul class="list-group mb-4">
+        {% for erro in erros %}
+        <li class="list-group-item text-danger">{{ erro }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <a href="/upload-xls/" class="btn btn-primary">Nova Importação</a>
+
+</div>
+{% endblock %}

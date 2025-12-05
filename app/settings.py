@@ -11,6 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 # ALLOWED_HOSTS - Configuração para Railway
+ALLOWED_HOSTS = ["*", "192.168.0.10"]
+
 ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '*')
 if ALLOWED_HOSTS_ENV == '*':
     ALLOWED_HOSTS = ['*']

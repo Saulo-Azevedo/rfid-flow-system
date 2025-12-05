@@ -1,189 +1,431 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscar Histórico - RFID Flow</title>
-    
-    <!-- CSS Global -->
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header class="card mb-3 fade-in">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    {% load static %}
-                    <img src="{% static 'img/logo.png' %}" 
-                         alt="RFID Flow" 
-                         style="height: 60px; object-fit: contain;"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div>
-                        <h1 style="margin: 0; font-size: 1.8rem;">RFID FLOW</h1>
-                        <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Industry 4.0 - Gestão Inteligente de Botijões</p>
-                    </div>
-                </div>
-                
-                <div class="update-indicator" id="updateIndicator">
-                    <div class="pulse-dot"></div>
-                    <span>Sistema ativo</span>
-                </div>
-            </div>
-        </header>
 
-        <!-- Busca -->
-        <div class="card mb-3 slide-in">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.3-4.3"></path>
-                    </svg>
-                    Buscar Histórico de Botijões
-                </h3>
-            </div>
-            
-            <form method="get" style="padding: 20px;">
-                <div style="display: flex; gap: 10px;">
-                    <input 
-                        type="text" 
-                        name="q" 
-                        value="{{ query }}"
-                        placeholder="Digite a Tag RFID ou Número de Série..."
-                        style="flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-size: 1rem;"
-                        autofocus
-                    >
-                    <button type="submit" class="btn btn-primary">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.3-4.3"></path>
-                        </svg>
-                        Buscar
-                    </button>
-                    <a href="{% url 'dashboard' %}" class="btn btn-outline">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="19" x2="5" y1="12" y2="12"></line>
-                            <polyline points="12 19 5 12 12 5"></polyline>
-                        </svg>
-                        Voltar
-                    </a>
-                </div>
-            </form>
-        </div>
+{% block content %}
 
-        <!-- Resultados -->
-        {% if query %}
-            {% if resultados %}
-                <div class="card fade-in" style="animation-delay: 0.1s;">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            📊 {{ total_encontrados }} resultado{{ total_encontrados|pluralize }} encontrado{{ total_encontrados|pluralize }}
-                        </h3>
-                    </div>
+<style>
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #FFFFFF;
+    }
 
-                    {% for resultado in resultados %}
-                        <div style="padding: 20px; border-bottom: 1px solid var(--border-color);">
-                            <!-- Info do Botijão -->
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 15px; background: rgba(0, 212, 255, 0.05); border-radius: 8px;">
-                                <div>
-                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Tag RFID</label>
-                                    <strong style="color: var(--primary); font-size: 1.1rem;">{{ resultado.botijao.tag_rfid }}</strong>
-                                </div>
-                                <div>
-                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Nº Série</label>
-                                    <span style="color: var(--text-primary);">{{ resultado.botijao.numero_serie }}</span>
-                                </div>
-                                <div>
-                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Fabricante</label>
-                                    <span style="color: var(--text-primary);">{{ resultado.botijao.fabricante }}</span>
-                                </div>
-                                <div>
-                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Status</label>
-                                    <span class="badge badge-{{ resultado.botijao.status }}">{{ resultado.botijao.status_display }}</span>
-                                </div>
-                                <div>
-                                    <label style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 5px;">Total de Leituras</label>
-                                    <span style="color: var(--secondary); font-weight: 600;">{{ resultado.total_leituras }}</span>
-                                </div>
-                                <div>
-                                    <a href="{% url 'historico_botijao' resultado.botijao.id %}" class="btn btn-primary" style="width: 100%; margin-top: 18px;">
-                                        Ver Histórico Completo
-                                    </a>
-                                </div>
-                            </div>
+    .card-rfid {
+        background: rgba(20, 20, 20, 0.75);
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.45);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(0, 212, 255, 0.18);
+    }
 
-                            <!-- Últimas Leituras -->
-                            {% if resultado.leituras %}
-                                <h4 style="color: var(--text-primary); margin-bottom: 15px; font-size: 1rem;">
-                                    📅 Últimas 10 Leituras
-                                </h4>
-                                
-                                <div style="overflow-x: auto;">
-                                    <table style="width: 100%; border-collapse: collapse;">
-                                        <thead>
-                                            <tr style="background: rgba(0, 212, 255, 0.1);">
-                                                <th style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color);">Data/Hora</th>
-                                                <th style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color);">Operador</th>
-                                                <th style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color);">Observação</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for leitura in resultado.leituras %}
-                                                <tr style="border-bottom: 1px solid var(--border-color);">
-                                                    <td style="padding: 12px; color: var(--text-primary);">{{ leitura.data_hora }}</td>
-                                                    <td style="padding: 12px; color: var(--text-primary);">{{ leitura.operador }}</td>
-                                                    <td style="padding: 12px; color: var(--text-secondary);">{{ leitura.observacao }}</td>
-                                                </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            {% else %}
-                                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-                                    <p>Nenhuma leitura registrada ainda</p>
-                                </div>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <!-- Nenhum resultado -->
-                <div class="card fade-in" style="animation-delay: 0.1s;">
-                    <div style="text-align: center; padding: 60px; color: var(--text-muted);">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" x2="12" y1="8" y2="12"></line>
-                            <line x1="12" x2="12.01" y1="16" y2="16"></line>
-                        </svg>
-                        <h3 style="color: var(--text-secondary);">Nenhum botijão encontrado</h3>
-                        <p>Não encontramos nenhum botijão com: <strong>{{ query }}</strong></p>
-                        <p style="margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
-                            Dicas:
-                            <br>• Verifique se digitou corretamente
-                            <br>• Tente buscar pela Tag RFID completa
-                            <br>• Tente buscar pelo Número de Série
-                        </p>
-                    </div>
-                </div>
-            {% endif %}
-        {% else %}
-            <!-- Estado inicial - sem busca -->
-            <div class="card fade-in" style="animation-delay: 0.1s;">
-                <div style="text-align: center; padding: 60px; color: var(--text-muted);">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 20px; opacity: 0.3;">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.3-4.3"></path>
-                    </svg>
-                    <h3 style="color: var(--text-secondary);">Digite para buscar</h3>
-                    <p>Use o campo acima para buscar por Tag RFID ou Número de Série</p>
-                </div>
-            </div>
-        {% endif %}
+    .search-input {
+        background: #05070b;
+        border-radius: 999px;
+        border: 1px solid #1e293b;
+        color: #e5e7eb;
+        padding-left: 20px;
+        height: 48px;
+    }
+
+    .search-input::placeholder {
+        color: #6b7280;
+    }
+
+    .btn-search {
+        border-radius: 999px;
+        height: 48px;
+        font-weight: 500;
+        background: linear-gradient(90deg, #00D4FF, #0095ff);
+        border: none;
+        color: #00121f;
+    }
+
+    .btn-search:hover {
+        filter: brightness(1.05);
+    }
+
+    .btn-back {
+        background: none;
+        border: 2px solid #00D4FF;
+        color: #00D4FF;
+        padding: 8px 16px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+    }
+
+    .btn-back:hover {
+        background: rgba(0, 212, 255, 0.12);
+        color: #00D4FF;
+    }
+
+    .botijao-title {
+        color: #00D4FF;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .botijao-meta {
+        color: #9ca3af;
+        font-size: 14px;
+    }
+
+    .section-subtitle {
+        color: #e5e7eb;
+        font-size: 15px;
+        font-weight: 600;
+        margin-top: 18px;
+        margin-bottom: 6px;
+    }
+
+    .nav-tabs-rfid {
+        border-bottom: 1px solid #111827;
+        margin-bottom: 16px;
+    }
+
+    .nav-tabs-rfid .nav-link {
+        border-radius: 999px;
+        color: #9ca3af;
+        font-size: 14px;
+        padding: 6px 16px;
+        margin-right: 8px;
+        background: transparent;
+        border: none;
+    }
+
+    .nav-tabs-rfid .nav-link:hover {
+        background: rgba(15, 23, 42, 0.9);
+        color: #e5e7eb;
+    }
+
+    .nav-tabs-rfid .nav-link.active {
+        background: linear-gradient(90deg, #00D4FF, #00ff9d);
+        color: #020617;
+        font-weight: 600;
+    }
+
+    .rfid-label {
+        color: #9ca3af;
+        font-size: 13px;
+        margin-bottom: 0;
+    }
+
+    .rfid-value {
+        color: #e5e7eb;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .table-rfid thead th {
+        background: #020617;
+        color: #e5e7eb;
+        border-bottom: 2px solid #00D4FF;
+        font-weight: 600;
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+
+    .table-rfid tbody tr {
+        background: #020617;
+        color: #d4d4d4;
+        border-bottom: 1px solid #0f172a;
+    }
+
+    .table-rfid tbody tr:hover {
+        background: #020617;
+        filter: brightness(1.06);
+    }
+
+    .badge-status {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .badge-status-ativo {
+        background: rgba(9, 236, 92, 0.1);
+        color: #4ade80;
+        border: 1px solid rgba(74, 222, 128, 0.5);
+    }
+
+    .badge-status-inativo {
+        background: rgba(148, 163, 184, 0.08);
+        color: #9ca3af;
+        border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .badge-status-manutencao {
+        background: rgba(234, 179, 8, 0.08);
+        color: #facc15;
+        border: 1px solid rgba(250, 204, 21, 0.6);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px 24px;
+    }
+
+    .no-results {
+        color: #9ca3af;
+        text-align: center;
+        padding: 24px 0;
+    }
+</style>
+
+<div class="container">
+
+    <!-- BOTÃO VOLTAR -->
+    <div class="mb-3">
+        <a href="{% url 'dashboard' %}" class="btn-back">
+            <i class="bi bi-arrow-left"></i>
+            Voltar
+        </a>
     </div>
-</body>
-</html>
+
+    <h2 class="page-title mb-3">Buscar Histórico</h2>
+
+    <!-- FORM DE BUSCA -->
+    <div class="card-rfid mb-4">
+        <form method="GET" class="row g-3 align-items-center">
+            <div class="col-md-10">
+                <input type="text"
+                       name="q"
+                       value="{{ query }}"
+                       class="form-control search-input"
+                       placeholder="Tag RFID, Nº de Série ou Fabricante">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-search w-100">
+                    <i class="bi bi-search me-1"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if total_encontrados %}
+        <div class="text-white mb-3">
+            Resultados encontrados:
+            <strong>{{ total_encontrados }}</strong>
+        </div>
+    {% endif %}
+
+    {% if not resultados %}
+        <div class="card-rfid">
+            <p class="no-results">Nenhum botijão encontrado para a busca informada.</p>
+        </div>
+    {% endif %}
+
+    {% for r in resultados %}
+        {% with b=r.botijao %}
+        <div class="card-rfid mb-4">
+
+            <!-- CABEÇALHO DO BOTIJÃO -->
+            <div class="d-flex justify-content-between flex-wrap mb-2">
+                <div>
+                    <div class="botijao-title">
+                        Botijão: {{ b.tag_rfid }}
+                    </div>
+                    <div class="botijao-meta">
+                        Nº Série: {{ b.numero_serie|default:"-" }} &nbsp;&middot;&nbsp;
+                        Fabricante: {{ b.fabricante|default:"-" }}
+                    </div>
+                </div>
+
+                <div class="mt-2 mt-md-0">
+                    {% if b.status == "ativo" %}
+                        <span class="badge-status badge-status-ativo">
+                            ● {{ b.status }}
+                        </span>
+                    {% elif b.status == "manutencao" %}
+                        <span class="badge-status badge-status-manutencao">
+                            ● Em Manutenção
+                        </span>
+                    {% else %}
+                        <span class="badge-status badge-status-inativo">
+                            ● {{ b.status|default:"Inativo" }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ABAS -->
+            <ul class="nav nav-tabs-rfid mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active"
+                            id="tab-geral-{{ forloop.counter }}"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-geral-{{ forloop.counter }}"
+                            type="button" role="tab">
+                        Informações Gerais
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            id="tab-requal-{{ forloop.counter }}"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-requal-{{ forloop.counter }}"
+                            type="button" role="tab">
+                        Requalificação
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            id="tab-env-{{ forloop.counter }}"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-env-{{ forloop.counter }}"
+                            type="button" role="tab">
+                        Envasamento
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            id="tab-leituras-{{ forloop.counter }}"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-leituras-{{ forloop.counter }}"
+                            type="button" role="tab">
+                        Leituras ({{ r.total_leituras }})
+                    </button>
+                </li>
+            </ul>
+
+            <!-- CONTEÚDO DAS ABAS -->
+            <div class="tab-content">
+
+                <!-- ABA 1: GERAL -->
+                <div class="tab-pane fade show active"
+                     id="pane-geral-{{ forloop.counter }}"
+                     role="tabpanel"
+                     aria-labelledby="tab-geral-{{ forloop.counter }}">
+
+                    <div class="info-grid">
+                        <div>
+                            <p class="rfid-label">Tag RFID</p>
+                            <p class="rfid-value">{{ b.tag_rfid }}</p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Nº Série</p>
+                            <p class="rfid-value">{{ b.numero_serie|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Fabricante</p>
+                            <p class="rfid-value">{{ b.fabricante|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Tara (kg)</p>
+                            <p class="rfid-value">{{ b.tara|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Total de Leituras</p>
+                            <p class="rfid-value">{{ r.total_leituras }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 2: REQUALIFICAÇÃO -->
+                <div class="tab-pane fade"
+                     id="pane-requal-{{ forloop.counter }}"
+                     role="tabpanel"
+                     aria-labelledby="tab-requal-{{ forloop.counter }}">
+
+                    <div class="info-grid">
+                        <div>
+                            <p class="rfid-label">Última Requalificação</p>
+                            <p class="rfid-value">
+                                {{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Próxima Requalificação</p>
+                            <p class="rfid-value">
+                                {{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Status da Requalificação</p>
+                            <p class="rfid-value">
+                                {{ b.status_requalificacao_display|default:"-" }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 3: ENVASAMENTO -->
+                <div class="tab-pane fade"
+                     id="pane-env-{{ forloop.counter }}"
+                     role="tabpanel"
+                     aria-labelledby="tab-env-{{ forloop.counter }}">
+
+                    <div class="info-grid">
+                        <div>
+                            <p class="rfid-label">Penúltima Envasadora</p>
+                            <p class="rfid-value">{{ b.penultima_envasadora|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Data penúltimo envasamento</p>
+                            <p class="rfid-value">
+                                {{ b.data_penultimo_envasamento|date:"d/m/Y"|default:"-" }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Última Envasadora</p>
+                            <p class="rfid-value">{{ b.ultima_envasadora|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <p class="rfid-label">Data último envasamento</p>
+                            <p class="rfid-value">
+                                {{ b.data_ultimo_envasamento|date:"d/m/Y"|default:"-" }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 4: LEITURAS -->
+                <div class="tab-pane fade"
+                     id="pane-leituras-{{ forloop.counter }}"
+                     role="tabpanel"
+                     aria-labelledby="tab-leituras-{{ forloop.counter }}">
+
+                    <h6 class="section-subtitle">Últimas leituras</h6>
+
+                    <div class="table-responsive mt-2">
+                        <table class="table table-hover table-rfid mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Operador</th>
+                                    <th>Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for l in r.leituras %}
+                                    <tr>
+                                        <td>{{ l.data_hora }}</td>
+                                        <td>{{ l.operador }}</td>
+                                        <td>{{ l.observacao }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">
+                                            Nenhuma leitura registrada para este botijão.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        {% endwith %}
+    {% endfor %}
+
+</div>
+
+{% endblock %}

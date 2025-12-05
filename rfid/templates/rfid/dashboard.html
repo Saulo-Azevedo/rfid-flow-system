@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+
+/* ===== FUNDO PREMIUM SUAVE ===== */
+body {
+    background-color: #0C1118 !important;
+    color: #E6E6E6;
+}
+
+/* ===== LOGO ===== */
+.logo-navbar {
+    height: 40px;
+    width: auto;
+    margin-right: 15px;
+}
+
+/* ===== HEADER TITLES ===== */
+.header-title {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #FFFFFF;
+}
+
+.subtitle-white {
+    color: #FFFFFF !important;
+}
+
+/* ===== CARDS ===== */
+.card-rfid {
+    background: rgba(20, 20, 20, 0.6);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.45);
+    padding: 25px;
+    transition: 0.25s ease;
+    backdrop-filter: blur(4px);
+}
+
+.card-rfid:hover {
+    transform: translateY(-4px);
+}
+
+/* ===== TABELA ===== */
+.table-responsive {
+    overflow-x: auto;
+    border-radius: 10px;
+}
+
+.table thead th {
+    background: #1A1A1A;
+    color: #FFFFFF;
+    border-bottom: 2px solid #00D4FF;
+    padding: 12px;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.table tbody td {
+    background: #111111;
+    color: #D4D4D4;
+    border-bottom: 1px solid #222;
+    padding: 10px;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.table tbody tr:hover {
+    background: #1b1b1b;
+}
+
+/* BOTÕES SUPERIORES */
+.btn-main {
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 16px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+</style>
+
+
+<div class="container">
+
+    <!-- HEADER -->
+    <div class="d-flex align-items-center mb-4">
+        <img src="{% static 'img/logo.png' %}" class="logo-navbar" alt="RFID Flow Logo">
+        <h2 class="header-title">Dashboard RFID Flow</h2>
+    </div>
+
+    <p class="subtitle-white mb-4">Resumo operacional atualizado em tempo real.</p>
+
+
+    <!-- ===== BOTÕES PRINCIPAIS ===== -->
+    <div class="d-flex flex-wrap gap-3 mb-4">
+
+        <a href="{% url 'upload_xls' %}" class="btn-main"
+        style="background:#00AFFF; color:white;">
+            <i class="bi bi-upload"></i> Importar Leituras
+        </a>
+
+        <a href="{% url 'pagina_leitura_barcode' %}" class="btn-main"
+        style="background:#6366F1; color:white;">
+            <i class="bi bi-barcode-scan"></i> Leitura Código de Barras
+        </a>
+
+        <a href="{% url 'exportar_excel' %}" class="btn-main"
+           style="background:#00D45F; color:white;">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i> Exportar Excel
+        </a>
+
+        <a href="{% url 'enviar_email' %}" class="btn-main"
+           style="background:#00C96B; color:white;">
+            <i class="bi bi-envelope-fill"></i> Enviar Relatório
+        </a>
+
+        <a href="{% url 'relatorios' %}" class="btn-main"
+           style="background:#A6FF3F; color:#033;">
+            <i class="bi bi-bar-chart-fill"></i> Relatórios
+        </a>
+
+        <a href="{% url 'buscar_historico' %}" class="btn-main"
+           style="border:2px solid #00AFFF; color:#00AFFF; background:none;">
+            <i class="bi bi-search"></i> Buscar Histórico
+        </a>
+
+        <a href="/admin/" class="btn-main"
+           style="border:2px solid #00E0FF; color:#00E0FF; background:none;">
+            <i class="bi bi-gear-fill"></i> Admin
+        </a>
+
+        <a href="{% url 'logout' %}" class="btn-main"
+           style="background:#FF5722; color:white;">
+            <i class="bi bi-box-arrow-right"></i> Sair
+        </a>
+
+    </div>
+
+
+    <!-- ===== CARDS ===== -->
+    <div class="row g-4">
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card-rfid text-center">
+                <h5>Total de Botijões</h5>
+                <h1 class="text-info">{{ total_botijoes }}</h1>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card-rfid text-center">
+                <h5>Leituras Hoje</h5>
+                <h1 class="text-success">{{ leituras_hoje }}</h1>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card-rfid text-center">
+                <h5>Botijões Ativos</h5>
+                <h1 class="text-primary">{{ botijoes_ativos }}</h1>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- ===== NOVA TABELA ===== -->
+    <div class="card-rfid mt-5">
+        <h4 class="subtitle-white mb-3">Últimas leituras registradas:</h4>
+
+        <div class="table-responsive mt-3">
+            <table class="table table-hover">
+
+                <thead>
+                    <tr>
+                        <th>Tag RFID</th>
+                        <th>Nº Série</th>
+                        <th>Tara</th>
+                        <th>Fabricante</th>
+                        <th>Última Requalificação</th>
+                        <th>Próxima Requalificação</th>
+                        <th>Penúltima Envasadora</th>
+                        <th>Data Penúltimo Env.</th>
+                        <th>Última Envasadora</th>
+                        <th>Data Último Env.</th>
+                        <th>Total Leituras</th>
+                        <th>Última Leitura</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for b in botijoes %}
+                    <tr>
+                        <td>{{ b.tag_rfid }}</td>
+                        <td>{{ b.numero_serie|default:"-" }}</td>
+                        <td>{{ b.tara|default:"-" }}</td>
+                        <td>{{ b.fabricante|default:"-" }}</td>
+
+                        <td>{{ b.ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                        <td>{{ b.proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+
+                        <td>{{ b.penultima_envasadora|default:"-" }}</td>
+                        <td>{{ b.data_penultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>
+
+                        <td>{{ b.ultima_envasadora|default:"-" }}</td>
+                        <td>{{ b.data_ultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>
+
+                        <td>{{ b.num_leituras }}</td>
+
+                        <td>
+                            {% if b.ultima_leitura %}
+                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
+                            {% else %} - {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted">
+                            Nenhuma leitura registrada.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<!-- Atualização automática do Dashboard (a cada 5 segundos) -->
+<script>
+    setInterval(function() {
+        window.location.reload();
+    }, 5000);
+</script>
+
+{% endblock %}

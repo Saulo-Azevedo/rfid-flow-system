@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>Pré-visualização da Importação</h2>
+    <p>Confira os dados abaixo antes de confirmar.</p>
+
+    <div class="mt-4">
+        <table class="table table-hover table-bordered table-dark">
+            <thead>
+                <tr>
+                    {% if dados %}
+                        {% for coluna in dados.0.keys %}
+                            <th>{{ coluna }}</th>
+                        {% endfor %}
+                    {% endif %}
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for linha in dados %}
+                <tr>
+                    {% for valor in linha.values %}
+                        <td>{{ valor }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <form method="post" action="{% url 'confirmar_import' %}">
+        {% csrf_token %}
+        <button class="btn btn-success">Confirmar Importação</button>
+
+        <a href="{% url 'upload_xls' %}" class="btn btn-secondary">
+            Cancelar
+        </a>
+
+        <a href="{% url 'dashboard' %}" class="btn btn-info">
+            Voltar ao Dashboard
+        </a>
+    </form>
+
+</div>
+
+{% endblock %}

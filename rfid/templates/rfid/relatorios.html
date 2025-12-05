@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+.page-title { font-size: 28px; font-weight: 700; color: #fff; }
+.card-rfid { background: rgba(20,20,20,0.6); border-radius: 14px; padding: 25px; }
+
+.table thead th {
+    background:#1a1a1a;
+    color:#fff;
+    border-bottom:2px solid #00D4FF;
+    white-space: nowrap;
+}
+.table tbody tr { background:#111; color:#d4d4d4; }
+.table tbody tr:hover { background:#1b1b1b; }
+
+.table td, .table th {
+    padding: 6px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    border-radius: 10px;
+}
+
+.stat-card {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid #0af;
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    color: #fff;
+}
+.stat-value { font-size: 26px; font-weight: bold; color: #00D4FF; }
+.stat-label { font-size: 13px; color: #ddd; }
+
+.btn-back {
+    border: 2px solid #00D4FF;
+    color: #00D4FF;
+    border-radius: 10px;
+    padding: 8px 14px;
+}
+</style>
+
+<div class="container">
+
+    <a href="{% url 'dashboard' %}" class="btn-back mb-4 d-inline-flex align-items-center">
+        <i class="bi bi-arrow-left me-2"></i> Voltar
+    </a>
+
+    <h2 class="page-title mb-4">Relatórios</h2>
+
+    <!-- FILTROS -->
+    <div class="card-rfid mb-4">
+        <form method="GET" class="row g-3 text-white">
+            <div class="col-md-3">
+                <label>Status</label>
+                <select name="status" class="form-select bg-dark text-white border-secondary">
+                    <option value="">Todos</option>
+                    {% for value,label in status_choices %}
+                        <option value="{{ value }}" {% if value == status_selected %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label>Data início</label>
+                <input type="date" name="data_inicio" value="{{ data_inicio }}"
+                       class="form-control bg-dark text-white border-secondary">
+            </div>
+
+            <div class="col-md-3">
+                <label>Data fim</label>
+                <input type="date" name="data_fim" value="{{ data_fim }}"
+                       class="form-control bg-dark text-white border-secondary">
+            </div>
+
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-info w-100">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- RESUMO -->
+    <h5 class="text-white mb-2">Botijões encontrados: {{ total_filtrado }}</h5>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_filtrado }}</div>
+                <div class="stat-label">Botijões filtrados</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ botijoes|length }}</div>
+                <div class="stat-label">Registros analisados</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_leituras }}</div>
+                <div class="stat-label">Total de leituras</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div class="card-rfid">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="text-white">Resultados</h4>
+            <a href="{% url 'exportar_excel' %}" class="btn btn-success">
+                <i class="bi bi-file-earmark-spreadsheet-fill"></i> Exportar Excel
+            </a>
+        </div>
+
+        <!-- 🔥 SOMENTE A TABELA ALTERADA -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>Tag RFID</th>
+                    <th>Nº Série</th>
+                    <th>Fabricante</th>
+                    <th>Tara</th>
+                    <th>Últ. Requalificação</th>
+                    <th>Próx. Requalificação</th>
+                    <th>Penúlt. Envasadora</th>
+                    <th>Data Penúltimo Env.</th>
+                    <th>Últ. Envasadora</th>
+                    <th>Data Último Env.</th>
+                    <th>Status</th>
+                    <th>Status Requalificação</th>
+                    <th>Total Leituras</th>
+                    <th>Data Cadastro</th>
+                    <th>Última Leitura</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for b in botijoes %}
+                    <tr>
+                        <td>{{ b.tag_rfid }}</td>
+                        <td>{{ b.numero_serie|default:"-" }}</td>
+                        <td>{{ b.fabricante|default:"-" }}</td>
+                        <td>{{ b.tara|default:"-" }}</td>
+
+                        <td>{{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                        <td>{{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+
+                        <td>{{ b.penultima_envasadora|default:"-" }}</td>
+                        <td>{{ b.data_penultimo_envase|date:"d/m/Y"|default:"-" }}</td>
+
+                        <td>{{ b.ultima_envasadora|default:"-" }}</td>
+                        <td>{{ b.data_ultimo_envase|date:"d/m/Y"|default:"-" }}</td>
+
+                        <td>{{ b.get_status_display }}</td>
+                        <td>{{ b.get_status_requalificacao_display }}</td>
+
+                        <td>{{ b.num_leituras }}</td>
+                        <td>{{ b.data_cadastro|date:"d/m/Y H:i" }}</td>
+
+                        <td>
+                            {% if b.ultima_leitura %}
+                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="15" class="text-center text-muted">Nenhum resultado encontrado.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

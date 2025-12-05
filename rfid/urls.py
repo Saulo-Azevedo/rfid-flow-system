@@ -3,6 +3,10 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+from .views_upload import upload_xls
+from .views_import import upload_xls, preview_import, confirmar_import
+
+
 
 urlpatterns = [
     
@@ -95,6 +99,13 @@ urlpatterns = [
     # ⚠️ DESCOMENTE APENAS TEMPORARIAMENTE PARA CRIAR ADMIN INICIAL
     # ⚠️ DEPOIS COMENTE NOVAMENTE POR SEGURANÇA!
     # path('criar-admin-temp/', views.criar_admin_temp, name='criar_admin_temp'),
+
+    # rota onde o usuário envia o arquivo
+    path("upload-xls/", upload_xls, name="upload_xls"),
+
+    path("preview-import/", preview_import, name="preview_import"),
+    # rota da confirmação
+    path("confirmar-import/", confirmar_import, name="confirmar_import"),
 ]
 
 '''
