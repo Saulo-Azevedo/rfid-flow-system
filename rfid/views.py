@@ -10,6 +10,12 @@ from django.db.models import Q, Count
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.shortcuts import render, redirect
+
+# ... outros imports que já existiam ...
+from django.http import JsonResponse           # <--- Necessário para a API
+from django.views.decorators.csrf import csrf_exempt  # <--- O QUE FALTOU
+import json                                    # <--- Necessário para ler o corpo da requisição
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -806,76 +812,51 @@ enviar_relatorio_view = enviar_email_view
 # API para registrar leitura RFID
 # -----------------------
 
-@login_required
+@csrf_exempt  # <--- Isso permite que o Android envie dados sem token de navegador
 def api_registrar_leitura(request):
     if request.method != "POST":
-        return JsonResponse(
-        {
-            "success": False,
-            "error": "Método não permitido. Use POST.",
-        },
-        status=405,
-    )
-
-    import json
+        return JsonResponse({"success": False, "error": "Use POST"}, status=405)
 
     try:
-        if request.content_type == "application/json":
-            data = json.loads(request.body)
-            tag_rfid = data.get("tag_rfid", "").strip()
-            operador = data.get("operador", "").strip()
-            observacao = data.get("observacao", "").strip()
-        else:
-            tag_rfid = request.POST.get("tag_rfid", "").strip()
-            operador = request.POST.get("operador", "").strip()
-            observacao = request.POST.get("observacao", "").strip()
+        # 1. Ler o JSON que vem do Android
+        data = json.loads(request.body)
+        
+        # 2. Pegar os dados usando os nomes exatos
+        tag_rfid = data.get("tag_rfid", "").strip()
+        operador = data.get("operador", "PDA_C72").strip() # Valor padrão se vier vazio
+        observacao = data.get("observacao", "Leitura Mobile").strip()
 
         if not tag_rfid:
-            return JsonResponse(
-                {"success": False, "error": "Tag RFID é obrigatória."},
-                status=400,
-            )
+            return JsonResponse({"success": False, "error": "Tag RFID faltando"}, status=400)
 
+        # 3. Lógica do Botijão (Mantida igual a sua)
         botijao, criado = Botijao.objects.get_or_create(tag_rfid=tag_rfid)
 
         leitura = LeituraRFID.objects.create(
             botijao=botijao,
-            operador=operador or None,
-            observacao=observacao or None,
+            operador=operador,
+            observacao=observacao,
         )
 
+        # 4. Log (O usuário será None pois não tem sessão, isso evita o crash)
         try:
             LogAuditoria.criar_log(
                 botijao=botijao,
                 acao="leitura",
-                usuario=request.user if request.user.is_authenticated else None,
-                descricao=f"Leitura registrada via API. Operador: {operador or '-'}; Obs: {observacao or '-'}",
+                usuario=None, # Android sem login envia como None ou Sistema
+                descricao=f"Leitura API. Op: {operador}",
                 dados_anteriores=None,
                 dados_novos={"leitura_id": leitura.id},
             )
         except Exception:
             pass
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": "Leitura registrada com sucesso.",
-                "data": {
-                    "botijao_id": botijao.id,
-                    "tag_rfid": botijao.tag_rfid,
-                    "numero_serie": botijao.numero_serie or "-",
-                    "criado": criado,
-                    "leitura_id": leitura.id,
-                    "data_hora": leitura.data_hora.strftime("%d/%m/%Y %H:%M:%S"),
-                },
-            }
-        )
+        return JsonResponse({
+            "success": True, 
+            "message": "Sucesso",
+            "id_leitura": leitura.id
+        })
 
     except Exception as e:
-        return JsonResponse(
-            {
-                "success": False,
-                "error": f"Erro ao processar leitura: {str(e)}",
-            },
-            status=500,
-        )
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+    
