@@ -1,9 +1,8 @@
 from django.apps import AppConfig
 
-class AppConfigRFID(AppConfig):
+class RfidConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "app"
+    name = "rfid"
 
     def ready(self):
-        # Importa signals para registrar o post_migrate
-        import app.signals  # noqa
+        import rfid.signals  # noqa
