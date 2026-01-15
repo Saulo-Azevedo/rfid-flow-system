@@ -44,8 +44,6 @@ INSTALLED_APPS = [
     "admin_interface",
     "colorfield",
 
-    "rfid.apps.RfidConfig",
-
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -56,7 +54,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
 
-    'rfid',
+    "rfid.apps.RfidConfig",
 ]
 
 MIDDLEWARE = [
