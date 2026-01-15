@@ -5,4 +5,5 @@ class RfidConfig(AppConfig):
     name = "rfid"
 
     def ready(self):
+        print("🚀 rfid.apps.RfidConfig.ready() carregou!")  # TESTE
         import rfid.signals  # noqa
