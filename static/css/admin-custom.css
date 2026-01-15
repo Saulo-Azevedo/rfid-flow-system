@@ -1,0 +1,5 @@
+#header { box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+.module { border-radius: 12px; overflow: hidden; }
+.button, input[type="submit"], input[type="button"], .submit-row input, a.button {
+  border-radius: 10px !important;
+}
