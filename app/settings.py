@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "admin_interface",
     "colorfield",
 
+    "app.apps.AppConfigRFID",
 
     'django.contrib.admin',
     'django.contrib.auth',
