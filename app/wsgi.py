@@ -13,7 +13,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")
 
 
 def _env_bool(name: str, default: str = "0") -> bool:
-    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "y", "on")
+    return (os.getenv(name, default) or "").strip().lower() in ("1", "true", "yes", "y", "on")
 
 
 def _acquire_lock(lock_path: str) -> bool:
@@ -32,18 +32,41 @@ def _acquire_lock(lock_path: str) -> bool:
         raise
 
 
+def _safe_info(key: str) -> dict:
+    """
+    Não vaza valores: só informa se existe e o tamanho.
+    """
+    v = os.getenv(key)
+    return {"present": v is not None, "len": (len(v) if v else 0)}
+
+
 def _bootstrap_superuser_once():
     """
     Cria/atualiza superusuário usando variáveis de ambiente.
     Executa uma única vez por container (lock em /tmp).
     """
-    # Se quiser desligar completamente em prod, basta não setar BOOTSTRAP_SUPERUSER=1
-    if not _env_bool("BOOTSTRAP_SUPERUSER", "1"):
-        return
-
     lock_path = "/tmp/bootstrap_superuser.lock"
     if not _acquire_lock(lock_path):
         # Já rodou neste container
+        return
+
+    # 🔎 DEBUG seguro: prova se as env vars chegam no runtime
+    keys = sorted([
+        k for k in os.environ.keys()
+        if k.startswith("DJANGO_SUPERUSER") or k == "BOOTSTRAP_SUPERUSER"
+    ])
+    print("🧪 ENV KEYS (safe):", keys)
+    print("🧪 ENV CHECK (safe):", {
+        "BOOTSTRAP_SUPERUSER": _safe_info("BOOTSTRAP_SUPERUSER"),
+        "DJANGO_SUPERUSER_USERNAME": _safe_info("DJANGO_SUPERUSER_USERNAME"),
+        "DJANGO_SUPERUSER_EMAIL": _safe_info("DJANGO_SUPERUSER_EMAIL"),
+        "DJANGO_SUPERUSER_PASSWORD": _safe_info("DJANGO_SUPERUSER_PASSWORD"),
+        "DJANGO_SUPERUSER_RESET_PASSWORD": _safe_info("DJANGO_SUPERUSER_RESET_PASSWORD"),
+    })
+
+    # Se você QUISER desativar o bootstrap, setar BOOTSTRAP_SUPERUSER=0
+    if not _env_bool("BOOTSTRAP_SUPERUSER", "1"):
+        print("ℹ️ BOOTSTRAP: desativado via BOOTSTRAP_SUPERUSER=0")
         return
 
     from django.contrib.auth import get_user_model
@@ -54,7 +77,7 @@ def _bootstrap_superuser_once():
     reset_password = _env_bool("DJANGO_SUPERUSER_RESET_PASSWORD", "0")
 
     if not username or not email or not password:
-        print("⚠️ BOOTSTRAP: DJANGO_SUPERUSER_* não definidos. Não criei superusuário.")
+        print("⚠️ BOOTSTRAP: DJANGO_SUPERUSER_* não definidos/chegaram vazios. Não criei superusuário.")
         return
 
     User = get_user_model()
