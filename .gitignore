@@ -1,9 +1,13 @@
-# CRÍTICO - Não commitar!
+# =========================
+# CRÍTICO - SEGREDOS
+# =========================
 .env
 *.env
 .env.*
 
-# Django
+# =========================
+# DJANGO
+# =========================
 *.log
 *.pot
 *.pyc
@@ -13,15 +17,37 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# =========================
+# BACKUPS / DUMPS / EXPORTS
+# =========================
+*.backup
+*.bak
+*.dump
+*.xml
+temp_exports/
+
+# =========================
 # IDEs
+# =========================
 .vscode/
 .idea/
 *.swp
 
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
 
-# Virtual Environment
+# =========================
+# VIRTUAL ENV
+# =========================
 venv/
 env/
+
+# =========================
+# FRONTEND (PREVENTIVO)
+# =========================
+node_modules/
+dist/
+build/

@@ -38,6 +38,15 @@
 .stat-value { font-size: 26px; font-weight: bold; color: #00D4FF; }
 .stat-label { font-size: 13px; color: #ddd; }
 
+.btn-back-fixed{
+    border-radius: 12px;
+    padding: 10px 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+
 .btn-back {
     border: 2px solid #00D4FF;
     color: #00D4FF;
@@ -48,66 +57,96 @@
 
 <div class="container">
 
-    <a href="{% url 'dashboard' %}" class="btn-back mb-4 d-inline-flex align-items-center">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-info btn-back-fixed">
         <i class="bi bi-arrow-left me-2"></i> Voltar
     </a>
 
-    <h2 class="page-title mb-4">Relatórios</h2>
+    <h2 class="text-white m-0 fw-bold">Relatórios</h2>
+
+    <!-- “placeholder” invisível pra manter o título alinhado quando quebrar linha -->
+    <div class="d-none d-md-block" style="width: 110px;"></div>
+    </div>
+
 
     <!-- FILTROS -->
     <div class="card-rfid mb-4">
-        <form method="GET" class="row g-3 text-white">
-            <div class="col-md-3">
-                <label>Status</label>
-                <select name="status" class="form-select bg-dark text-white border-secondary">
-                    <option value="">Todos</option>
-                    {% for value,label in status_choices %}
-                        <option value="{{ value }}" {% if value == status_selected %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+    <form method="GET" class="row g-3 text-white align-items-end">
 
-            <div class="col-md-3">
-                <label>Data início</label>
-                <input type="date" name="data_inicio" value="{{ data_inicio }}"
-                       class="form-control bg-dark text-white border-secondary">
-            </div>
+        <div class="col-lg-4 col-md-6">
+        <label class="form-label">Tipo</label>
+        <select name="tipo" class="form-select bg-dark text-white border-secondary">
+            <option value="" {% if not tipo_selected %}selected{% endif %}>Todos</option>
+            <option value="rfid" {% if tipo_selected == "rfid" %}selected{% endif %}>Somente RFID</option>
+            <option value="barcode" {% if tipo_selected == "barcode" %}selected{% endif %}>Somente Código de Barras</option>
+        </select>
+        </div>
 
-            <div class="col-md-3">
-                <label>Data fim</label>
-                <input type="date" name="data_fim" value="{{ data_fim }}"
-                       class="form-control bg-dark text-white border-secondary">
-            </div>
+        <div class="col-lg-4 col-md-6">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select bg-dark text-white border-secondary">
+            <option value="" {% if not status_selected %}selected{% endif %}>Todos</option>
+            {% for value,label in status_choices %}
+            <option value="{{ value }}" {% if value == status_selected %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+        </div>
 
-            <div class="col-md-3 d-flex align-items-end">
-                <button class="btn btn-info w-100">
-                    <i class="bi bi-funnel"></i> Filtrar
-                </button>
-            </div>
-        </form>
+        <div class="col-lg-4 col-md-12">
+        <label class="form-label">Data usada no filtro</label>
+        <select name="data_tipo" class="form-select bg-dark text-white border-secondary">
+            <option value="cadastro" {% if data_tipo == "cadastro" %}selected{% endif %}>Data de Cadastro</option>
+            <option value="leitura" {% if data_tipo == "leitura" %}selected{% endif %}>Data da Leitura</option>
+        </select>
+        </div>
+
+        <div class="col-12">
+        <hr class="border-secondary my-2">
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+        <label class="form-label">Data início</label>
+        <input type="date" name="data_inicio" value="{{ data_inicio }}"
+                class="form-control bg-dark text-white border-secondary">
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+        <label class="form-label">Data fim</label>
+        <input type="date" name="data_fim" value="{{ data_fim }}"
+                class="form-control bg-dark text-white border-secondary">
+        </div>
+
+        <div class="col-lg-4 col-md-12">
+        <button class="btn btn-info w-100">
+            <i class="bi bi-funnel"></i> Filtrar
+        </button>
+        </div>
+
+    </form>
     </div>
+
 
     <!-- RESUMO -->
     <h5 class="text-white mb-2">Botijões encontrados: {{ total_filtrado }}</h5>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="stat-card">
                 <div class="stat-value">{{ total_filtrado }}</div>
                 <div class="stat-label">Botijões filtrados</div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="stat-card">
                 <div class="stat-value">{{ botijoes|length }}</div>
                 <div class="stat-label">Registros analisados</div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="stat-card">
                 <div class="stat-value">{{ total_leituras }}</div>
                 <div class="stat-label">Total de leituras</div>
@@ -118,11 +157,21 @@
     <!-- RESULTADOS -->
     <div class="card-rfid">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="text-white">Resultados</h4>
-            <a href="{% url 'exportar_excel' %}" class="btn btn-success">
-                <i class="bi bi-file-earmark-spreadsheet-fill"></i> Exportar Excel
-            </a>
+        <div class="d-flex align-items-center mb-3">
+            <h4 class="text-white mb-0">Resultados</h4>
+
+            <!-- AÇÕES À DIREITA -->
+            <div class="ms-auto d-flex gap-2">
+                <a href="{% url 'exportar_excel' %}?{{ request.GET.urlencode }}"
+                class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-spreadsheet-fill"></i> Exportar Excel
+                </a>
+
+                <a href="{% url 'enviar_email' %}?{{ request.GET.urlencode }}"
+                class="btn btn-primary btn-sm">
+                    <i class="bi bi-envelope-fill"></i> Enviar Relatório
+                </a>
+            </div>
         </div>
 
         <!-- 🔥 SOMENTE A TABELA ALTERADA -->
@@ -130,6 +179,7 @@
             <table class="table table-hover">
                 <thead>
                 <tr>
+                    <th>Última Leitura</th>
                     <th>Tag RFID</th>
                     <th>Nº Série</th>
                     <th>Fabricante</th>
@@ -144,13 +194,17 @@
                     <th>Status Requalificação</th>
                     <th>Total Leituras</th>
                     <th>Data Cadastro</th>
-                    <th>Última Leitura</th>
                 </tr>
                 </thead>
 
                 <tbody>
                 {% for b in botijoes %}
                     <tr>
+                        <td>
+                            {% if b.ultima_leitura %}
+                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
+                            {% else %}-{% endif %}
+                        </td>
                         <td>{{ b.tag_rfid }}</td>
                         <td>{{ b.numero_serie|default:"-" }}</td>
                         <td>{{ b.fabricante|default:"-" }}</td>
@@ -171,11 +225,6 @@
                         <td>{{ b.num_leituras }}</td>
                         <td>{{ b.data_cadastro|date:"d/m/Y H:i" }}</td>
 
-                        <td>
-                            {% if b.ultima_leitura %}
-                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
-                            {% else %}-{% endif %}
-                        </td>
                     </tr>
                 {% empty %}
                     <tr>

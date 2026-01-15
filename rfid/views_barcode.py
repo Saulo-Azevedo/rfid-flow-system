@@ -32,7 +32,7 @@ def api_registrar_barcode(request):
             codigo=codigo,
             origem="PDA",
             operador="Automático",
-            observacao="Leitura via ADB"
+            observacao="Leitura via API/ABD"
         )
 
         # --------------------------------------------

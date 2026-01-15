@@ -83,16 +83,23 @@ body {
     gap: 8px;
 }
 
+/* ✅ LINK DA TAG (novo) */
+.tag-link {
+    color: #00D4FF;
+    font-weight: 700;
+    text-decoration: none;
+}
+.tag-link:hover {
+    text-decoration: underline;
+    filter: brightness(1.08);
+}
+
 </style>
 
 
 <div class="container">
 
     <!-- HEADER -->
-    <div class="d-flex align-items-center mb-4">
-        <img src="{% static 'img/logo.png' %}" class="logo-navbar" alt="RFID Flow Logo">
-        <h2 class="header-title">Dashboard RFID Flow</h2>
-    </div>
 
     <p class="subtitle-white mb-4">Resumo operacional atualizado em tempo real.</p>
 
@@ -108,16 +115,6 @@ body {
         <a href="{% url 'pagina_leitura_barcode' %}" class="btn-main"
         style="background:#6366F1; color:white;">
             <i class="bi bi-barcode-scan"></i> Leitura Código de Barras
-        </a>
-
-        <a href="{% url 'exportar_excel' %}" class="btn-main"
-           style="background:#00D45F; color:white;">
-            <i class="bi bi-file-earmark-spreadsheet-fill"></i> Exportar Excel
-        </a>
-
-        <a href="{% url 'enviar_email' %}" class="btn-main"
-           style="background:#00C96B; color:white;">
-            <i class="bi bi-envelope-fill"></i> Enviar Relatório
         </a>
 
         <a href="{% url 'relatorios' %}" class="btn-main"
@@ -179,6 +176,7 @@ body {
 
                 <thead>
                     <tr>
+                        <th>Última Leitura</th>
                         <th>Tag RFID</th>
                         <th>Nº Série</th>
                         <th>Tara</th>
@@ -190,14 +188,26 @@ body {
                         <th>Última Envasadora</th>
                         <th>Data Último Env.</th>
                         <th>Total Leituras</th>
-                        <th>Última Leitura</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     {% for b in botijoes %}
                     <tr>
-                        <td>{{ b.tag_rfid }}</td>
+                        <td>
+                            {% if b.ultima_leitura %}
+                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
+                            {% else %} - {% endif %}
+                        </td>
+
+                        <!-- ✅ AQUI É A ÚNICA MUDANÇA FUNCIONAL: TAG VIRA LINK PARA O HISTÓRICO -->
+                        <td>
+                            <a class="tag-link"
+                               href="{% url 'buscar_historico' %}?q={{ b.tag_rfid|urlencode }}">
+                                {{ b.tag_rfid }}
+                            </a>
+                        </td>
+
                         <td>{{ b.numero_serie|default:"-" }}</td>
                         <td>{{ b.tara|default:"-" }}</td>
                         <td>{{ b.fabricante|default:"-" }}</td>
@@ -213,11 +223,6 @@ body {
 
                         <td>{{ b.num_leituras }}</td>
 
-                        <td>
-                            {% if b.ultima_leitura %}
-                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
-                            {% else %} - {% endif %}
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>

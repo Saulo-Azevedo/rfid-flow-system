@@ -4,183 +4,222 @@
 {% block content %}
 
 <style>
-/* ======================= */
-/*     VISUAL PREMIUM      */
-/* ======================= */
 
-.page-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0;
+/* ===== FUNDO PREMIUM SUAVE (IGUAL AO DASHBOARD) ===== */
+body {
+    background-color: #0C1118 !important;
+    color: #E6E6E6;
 }
 
-.logo-title {
-    height: 42px;
+/* ===== LOGO (IGUAL AO DASHBOARD) ===== */
+.logo-navbar {
+    height: 40px;
     width: auto;
+    margin-right: 15px;
 }
 
+/* ===== HEADER TITLES (IGUAL AO DASHBOARD) ===== */
+.header-title {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #FFFFFF;
+}
+
+.subtitle-white {
+    color: #FFFFFF !important;
+}
+
+/* ===== CARDS (IGUAL AO DASHBOARD) ===== */
 .card-rfid {
-    background: rgba(17, 17, 17, 0.75);
-    border: 1px solid #1f2937;
+    background: rgba(20, 20, 20, 0.6);
     border-radius: 14px;
-    padding: 24px;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.55);
-    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.45);
+    padding: 25px;
     transition: 0.25s ease;
+    backdrop-filter: blur(4px);
 }
 
 .card-rfid:hover {
-    transform: translateY(-3px);
+    transform: translateY(-4px);
 }
 
-/* ÚLTIMO CÓDIGO */
+/* ===== CAMPO ÚLTIMO CÓDIGO (HARMONIZADO) ===== */
 .campo-ultimo-codigo {
-    font-size: 32px;
-    padding: 18px;
-    border-radius: 10px;
-    background: #020617;
-    border: 1px solid #0ea5e955;
-    color: #38bdf8;
+    font-size: 34px;
+    padding: 18px 16px;
+    border-radius: 12px;
+    background: #111111;
+    border: 2px solid rgba(0, 212, 255, 0.55); /* mesma vibe do azul */
+    color: #00D4FF;
     text-align: center;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 1px;
-    animation: pulseCode 0.3s ease-in-out;
+    word-break: break-all;
+    transition: 0.15s ease;
 }
 
-@keyframes pulseCode {
-    from { transform: scale(1.03); }
-    to   { transform: scale(1.00); }
-}
-
-/* SUB LABEL */
 .sub-label {
     font-size: 14px;
-    color: #9ca3af;
+    color: #bdbdbd;
     text-align: center;
-    margin-top: 6px;
+    margin-top: 10px;
 }
 
-/* CONTADOR */
+/* ===== BADGE CONTADOR (HARMONIZADO) ===== */
 .badge-contador {
     font-size: 15px;
     padding: 10px 18px;
     border-radius: 999px;
-    background: #022c22;
-    color: #6ee7b7;
+    background: rgba(0, 212, 255, 0.10);
+    color: #00D4FF;
     font-weight: 600;
-    border: 1px solid #065f46;
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
 }
 
-/* TABELA */
+/* ===== TABELA (IGUAL AO DASHBOARD) ===== */
+.table-responsive {
+    overflow-x: auto;
+    border-radius: 10px;
+}
+
 .table thead th {
-    background: #111827;
-    color: #e5e7eb;
-    border-bottom: 2px solid #38bdf8;
-    font-size: 15px;
-    padding-top: 12px;
-    padding-bottom: 12px;
+    background: #1A1A1A;
+    color: #FFFFFF;
+    border-bottom: 2px solid #00D4FF;
+    padding: 12px;
+    white-space: nowrap;
+    font-size: 14px;
 }
 
-.table tbody tr {
-    background: #0f172a;
-    color: #d1d5db;
-    border-bottom: 1px solid #1e293b;
+.table tbody td {
+    background: #111111;
+    color: #D4D4D4;
+    border-bottom: 1px solid #222;
+    padding: 10px;
+    white-space: nowrap;
+    font-size: 14px;
 }
 
 .table tbody tr:hover {
-    background: #1e293b;
-    transition: 0.2s;
+    background: #1b1b1b;
 }
 
-/* MOBILE */
-@media (max-width: 768px) {
-    .page-title { font-size: 22px; }
-    .campo-ultimo-codigo { font-size: 24px; }
-    .badge-contador { font-size: 14px; }
+/* ===== BOTÃO PADRÃO (IGUAL AO DASHBOARD) ===== */
+.btn-main {
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 16px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+    .header-title { font-size: 24px; }
+    .campo-ultimo-codigo { font-size: 24px; }
+}
+
 </style>
 
 
-<!-- ===================== -->
-<!--      CABEÇALHO        -->
-<!-- ===================== -->
-<div class="d-flex align-items-center gap-3 mb-4">
-    <img src="{% static 'img/logo.png' %}" class="logo-title" alt="RFID Flow">
-    <h2 class="page-title">Leitura de Código de Barras</h2>
-</div>
+<div class="container">
 
-<p class="text-muted mb-4">
-    Acompanhe em tempo real as leituras enviadas automaticamente pelo PDA.
-</p>
+    <!-- HEADER (IGUAL AO DASHBOARD) -->
+    <div class="d-flex align-items-center mb-2">
+        <img src="{% static 'img/logo.png' %}" class="logo-navbar" alt="RFID Flow Logo">
+        <h2 class="header-title">Leitura Código de Barras</h2>
+    </div>
+
+    <p class="subtitle-white mb-4">
+        Acompanhe em tempo real as leituras enviadas automaticamente pelo PDA.
+    </p>
+
+    <!-- Botão de navegação (opcional, mas deixa amigável e consistente) -->
+    <div class="d-flex flex-wrap gap-3 mb-4">
+        <a href="{% url 'dashboard' %}" class="btn-main"
+           style="border:2px solid #00AFFF; color:#00AFFF; background:none;">
+            <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+        </a>
+    </div>
 
 
-<!-- ============================ -->
-<!--      ÚLTIMO CÓDIGO + INFO    -->
-<!-- ============================ -->
-<div class="row mb-4">
-    <div class="col-lg-8 mb-3">
-        <div class="card-rfid">
-            <div class="text-muted mb-2">Último código recebido</div>
+    <!-- CARDS -->
+    <div class="row g-4 mb-4">
 
-            <div id="ultimo-codigo" class="campo-ultimo-codigo">
-                Aguardando leituras...
-            </div>
+        <div class="col-lg-8">
+            <div class="card-rfid">
+                <h5 class="subtitle-white mb-3">Último código recebido</h5>
 
-            <div class="sub-label">
-                O PDA envia automaticamente via ADB/IME.
+                <div id="ultimo-codigo" class="campo-ultimo-codigo">
+                    Aguardando leituras...
+                </div>
+
+                <div class="sub-label">
+                    Atualiza automaticamente (a cada 2s).
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-lg-4 mb-3">
-        <div class="card-rfid text-center d-flex flex-column justify-content-center">
-            <div class="text-muted mb-2">Resumo do dia</div>
+        <div class="col-lg-4">
+            <div class="card-rfid text-center h-100 d-flex flex-column justify-content-center">
+                <h5 class="subtitle-white mb-3">Leituras Hoje</h5>
 
-            <span class="badge-contador">
-                <i class="bi bi-barcode"></i>
-                <span id="total-hoje">0 leituras</span>
-            </span>
+                <span class="badge-contador">
+                    <i class="bi bi-barcode"></i>
+                    <span id="total-hoje">0 leituras</span>
+                </span>
+            </div>
         </div>
+
     </div>
-</div>
 
 
-<!-- ============================ -->
-<!--      TABELA DE LEITURAS      -->
-<!-- ============================ -->
-<div class="card-rfid">
-    <h5 class="mb-3" style="color:#e2e8f0;">Últimas leituras</h5>
+    <!-- TABELA -->
+    <div class="card-rfid mt-2">
+        <h4 class="subtitle-white mb-3">Últimas leituras registradas:</h4>
 
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Origem</th>
-                    <th>Operador</th>
-                    <th>Observação</th>
-                    <th>Data/Hora</th>
-                </tr>
-            </thead>
-            <tbody id="tabela-leituras">
-                <tr>
-                    <td colspan="5" class="text-center text-muted">
-                        Nenhuma leitura registrada ainda.
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="table-responsive mt-3">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Origem</th>
+                        <th>Operador</th>
+                        <th>Observação</th>
+                        <th>Data/Hora</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tabela-leituras">
+                    <tr>
+                        <td colspan="5" class="text-center text-muted" style="background:#111111;">
+                            Nenhuma leitura registrada ainda.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+        </div>
+
     </div>
+
 </div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
+let _lastCodigo = null;
+
 async function atualizarDashboardBarcode() {
     try {
-        const resp = await fetch("/api/barcode/dashboard/");
+        const resp = await fetch("/api/barcode/dashboard/", { cache: "no-store" });
         if (!resp.ok) return;
 
         const data = await resp.json();
@@ -188,11 +227,18 @@ async function atualizarDashboardBarcode() {
 
         // Último Código
         const ultimoCodigoEl = document.getElementById("ultimo-codigo");
-        ultimoCodigoEl.textContent = data.ultimo_codigo || "Aguardando leituras...";
+        const novo = data.ultimo_codigo || "Aguardando leituras...";
+
+        // animação leve só quando mudar (sem botão manual)
+        if (novo && novo !== _lastCodigo) {
+            _lastCodigo = novo;
+            ultimoCodigoEl.style.transform = "scale(1.015)";
+            setTimeout(() => ultimoCodigoEl.style.transform = "scale(1.0)", 120);
+        }
+        ultimoCodigoEl.textContent = novo;
 
         // Total Hoje
-        document.getElementById("total-hoje").textContent =
-            `${data.total_hoje} leituras`;
+        document.getElementById("total-hoje").textContent = `${data.total_hoje} leituras`;
 
         // Tabela
         const tbody = document.getElementById("tabela-leituras");
@@ -201,7 +247,7 @@ async function atualizarDashboardBarcode() {
         if (!data.leituras || data.leituras.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center text-muted">
+                    <td colspan="5" class="text-center text-muted" style="background:#111111;">
                         Nenhuma leitura registrada ainda.
                     </td>
                 </tr>`;
@@ -211,16 +257,16 @@ async function atualizarDashboardBarcode() {
         data.leituras.forEach(l => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td>${l.codigo}</td>
-                <td>${l.origem}</td>
-                <td>${l.operador}</td>
-                <td>${l.observacao}</td>
-                <td>${l.data_hora}</td>
+                <td>${l.codigo ?? ""}</td>
+                <td>${l.origem ?? ""}</td>
+                <td>${l.operador ?? ""}</td>
+                <td>${l.observacao ?? ""}</td>
+                <td>${l.data_hora ?? ""}</td>
             `;
             tbody.appendChild(tr);
         });
 
-    } catch(e) {
+    } catch (e) {
         console.error("Erro ao atualizar dashboard:", e);
     }
 }

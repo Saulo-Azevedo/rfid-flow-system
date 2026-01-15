@@ -41,13 +41,20 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 INSTALLED_APPS = [
+    "admin_interface",
+    "colorfield",
+
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
+
     'rest_framework',
+
     'rfid',
 ]
 
@@ -124,9 +131,6 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
-
-# APENAS PARA TESTE: Verifique se a senha está sendo lida
-print("DEBUG: EMAIL_HOST_PASSWORD lida:", os.environ.get('EMAIL_HOST_PASSWORD', ''))
 
 
 # Login

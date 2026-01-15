@@ -73,7 +73,7 @@
 <div class="container">
 
     <!-- VOLTAR -->
-    <a href="{% url 'dashboard' %}" class="btn-back mb-4 d-inline-flex align-items-center">
+    <a href="{% url 'relatorios' %}" class="btn-back mb-4 d-inline-flex align-items-center">
         <i class="bi bi-arrow-left me-2"></i> Voltar
     </a>
 
@@ -82,15 +82,28 @@
     <div class="card-rfid">
 
         <p class="notice mb-4">
-            O sistema enviará um arquivo Excel contendo os dados mais recentes dos cilindros monitorados.
+            O sistema enviará um arquivo Excel contendo os dados conforme os filtros selecionados em Relatórios.
         </p>
+
+        {% if filtro_resumo %}
+        <div class="alert alert-info">
+            <strong>Filtros aplicados:</strong> {{ filtro_resumo }}
+        </div>
+        {% endif %}
 
         <form method="POST" class="row g-3">
             {% csrf_token %}
+            <input type="hidden" name="tipo" value="{{ tipo_selected }}">
+            <input type="hidden" name="status" value="{{ status_selected }}">
+            <input type="hidden" name="data_tipo" value="{{ data_tipo|default:'cadastro' }}">
+            <input type="hidden" name="data_inicio" value="{{ data_inicio }}">
+            <input type="hidden" name="data_fim" value="{{ data_fim }}">
 
             <div class="col-md-8">
                 <label class="form-label">E-mail do destinatário</label>
-                <input type="email" name="destinatario" class="form-control" placeholder="exemplo@empresa.com" required>
+                <input type="email" name="destinatario" class="form-control"
+                       placeholder="exemplo@empresa.com" required 
+                       value="{{ destinatario_value|default:'' }}">
             </div>
 
             <div class="col-md-4 d-flex align-items-end">

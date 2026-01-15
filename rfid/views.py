@@ -1,5 +1,8 @@
 # rfid/views.py
 
+import logging
+logger = logging.getLogger(__name__)
+
 from datetime import timedelta
 
 from django.contrib import messages
@@ -61,9 +64,12 @@ def dashboard(request):
     ).exclude(status_requalificacao="vencida").count()
 
     # --- Últimos botijões cadastrados + total de leituras ---
+
+    RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$"
+
     botijoes = (
         Botijao.objects
-        .filter(deletado=False)
+        .filter(deletado=False, tag_rfid__regex=RFID_TAG_REGEX)
         .annotate(num_leituras=Count("leituras"))
         .order_by("-id")[:10]
     )
@@ -99,8 +105,9 @@ def dashboard(request):
     ultimas_leituras = (
         LeituraRFID.objects
         .select_related("botijao")
+        .filter(botijao__tag_rfid__regex=RFID_TAG_REGEX)
         .order_by("-data_hora")[:10]
-    )
+    )   
 
     # CONTEXTO FINAL — **somente UM return**, no fim!
     context = {
@@ -272,11 +279,15 @@ def nova_leitura(request):
 # Relatórios de requalificação e leituras
 # -----------------------
 
+RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$"
+
 @login_required
 def relatorios(request):
     status = request.GET.get("status", "")
     data_inicio = request.GET.get("data_inicio", "")
     data_fim = request.GET.get("data_fim", "")
+    data_tipo = (request.GET.get("data_tipo") or "cadastro").strip()  # "cadastro" | "leitura"
+    tipo = request.GET.get("tipo", "")  # "" | "rfid" | "barcode"
 
     botijoes = (
         Botijao.objects.filter(deletado=False)
@@ -287,12 +298,52 @@ def relatorios(request):
     if status:
         botijoes = botijoes.filter(status=status)
 
-    # FILTROS POR DATA DE CADASTRO
-    if data_inicio:
-        botijoes = botijoes.filter(data_cadastro__date__gte=data_inicio)
+    # FILTROS POR DATA (CADASTRO OU LEITURA)
+    if data_inicio or data_fim:
+        if data_tipo == "leitura":
+            if data_inicio:
+                botijoes = botijoes.filter(leituras__data_hora__date__gte=data_inicio)
+            if data_fim:
+                botijoes = botijoes.filter(leituras__data_hora__date__lte=data_fim)
+            botijoes = botijoes.distinct()
+        else:
+            # cadastro (padrão antigo)
+            if data_inicio:
+                botijoes = botijoes.filter(data_cadastro__date__gte=data_inicio)
+            if data_fim:
+                botijoes = botijoes.filter(data_cadastro__date__lte=data_fim)
 
-    if data_fim:
-        botijoes = botijoes.filter(data_cadastro__date__lte=data_fim)
+    # FILTRO POR TIPO (RFID x BARCODE)
+    if tipo == "rfid":
+        botijoes = botijoes.filter(tag_rfid__regex=RFID_TAG_REGEX)
+    elif tipo == "barcode":
+        botijoes = botijoes.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+
+    botijoes = botijoes.order_by("-data_cadastro")
+
+    # TOTAL DE LEITURAS SOMADAS (mantive igual seu padrão)
+    total_leituras = sum([b.num_leituras for b in botijoes])
+
+    context = {
+        "botijoes": botijoes,
+        "total_filtrado": botijoes.count(),
+        "total_leituras": total_leituras,
+        "status_choices": Botijao.STATUS_CHOICES,
+        "data_inicio": data_inicio,
+        "data_fim": data_fim,
+        "data_tipo": data_tipo,
+        "status_selected": status,
+        "tipo_selected": tipo,  # mantém o select marcado no template
+    }
+
+    return render(request, "rfid/relatorios.html", context)
+
+
+    # ✅ NOVO: FILTRO POR TIPO (RFID x BARCODE)
+    if tipo == "rfid":
+        botijoes = botijoes.filter(tag_rfid__regex=RFID_TAG_REGEX)
+    elif tipo == "barcode":
+        botijoes = botijoes.exclude(tag_rfid__regex=RFID_TAG_REGEX)
 
     botijoes = botijoes.order_by("-data_cadastro")
 
@@ -306,10 +357,15 @@ def relatorios(request):
         "status_choices": Botijao.STATUS_CHOICES,
         "data_inicio": data_inicio,
         "data_fim": data_fim,
+        "data_tipo": data_tipo,
         "status_selected": status,
+
+        # ✅ NOVO: pra manter o select marcado no template
+        "tipo_selected": tipo,
     }
 
     return render(request, "rfid/relatorios.html", context)
+
 
 
 @login_required
@@ -361,6 +417,44 @@ def relatorios_api(request):
 def exportar_excel(request):
     hoje = timezone.now().date()
 
+    # ✅ mesmos filtros do relatório
+    data_tipo = (request.GET.get("data_tipo") or "cadastro").strip()
+    status = request.GET.get("status", "")
+    data_inicio = request.GET.get("data_inicio", "")
+    data_fim = request.GET.get("data_fim", "")
+    tipo = request.GET.get("tipo", "")  # "", "rfid", "barcode"
+
+    # queryset base
+    qs = Botijao.objects.filter(deletado=False).annotate(num_leituras=Count("leituras"))
+
+    # status
+    if status:
+        qs = qs.filter(status=status)
+
+    # FILTRO POR DATA (CADASTRO OU LEITURA)
+    if data_inicio or data_fim:
+        if data_tipo == "leitura":
+            if data_inicio:
+                qs = qs.filter(leituras__data_hora__date__gte=data_inicio)
+            if data_fim:
+                qs = qs.filter(leituras__data_hora__date__lte=data_fim)
+            qs = qs.distinct()
+        else:
+            # cadastro (padrão antigo)
+            if data_inicio:
+                qs = qs.filter(data_cadastro__date__gte=data_inicio)
+            if data_fim:
+                qs = qs.filter(data_cadastro__date__lte=data_fim)
+
+
+    # tipo (RFID x Barcode)
+    if tipo == "rfid":
+        qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
+    elif tipo == "barcode":
+        qs = qs.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+
+    qs = qs.order_by("tag_rfid")
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Cilindros RFID"
@@ -389,10 +483,8 @@ def exportar_excel(request):
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    cilindros = Botijao.objects.filter(deletado=False).order_by("tag_rfid")
-
-    for c in cilindros:
-        status = _classificar_requal(c, hoje)
+    for c in qs:
+        status_requal = _classificar_requal(c, hoje)
         dias = None
         if c.data_proxima_requalificacao:
             dias = (c.data_proxima_requalificacao - hoje).days
@@ -402,31 +494,26 @@ def exportar_excel(request):
             c.fabricante or "-",
             c.numero_serie or "-",
             float(c.tara) if c.tara is not None else "-",
-            c.data_ultima_requalificacao.strftime("%d/%m/%Y")
-            if c.data_ultima_requalificacao else "-",
-            c.data_proxima_requalificacao.strftime("%d/%m/%Y")
-            if c.data_proxima_requalificacao else "-",
+            c.data_ultima_requalificacao.strftime("%d/%m/%Y") if c.data_ultima_requalificacao else "-",
+            c.data_proxima_requalificacao.strftime("%d/%m/%Y") if c.data_proxima_requalificacao else "-",
             dias if dias is not None else "-",
-            status,
+            status_requal,
             c.penultima_envasadora or "-",
-            c.data_penultimo_envasamento.strftime("%d/%m/%Y")
-            if c.data_penultimo_envasamento else "-",
+            c.data_penultimo_envasamento.strftime("%d/%m/%Y") if c.data_penultimo_envasamento else "-",
             c.ultima_envasadora or "-",
-            c.data_ultimo_envasamento.strftime("%d/%m/%Y")
-            if c.data_ultimo_envasamento else "-",
+            c.data_ultimo_envasamento.strftime("%d/%m/%Y") if c.data_ultimo_envasamento else "-",
         ])
 
+    # auto width
     for column in ws.columns:
         max_length = 0
         column_letter = column[0].column_letter
         for cell in column:
             try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
+                max_length = max(max_length, len(str(cell.value)))
             except Exception:
                 pass
-        adjusted_width = min(max_length + 2, 50)
-        ws.column_dimensions[column_letter].width = adjusted_width
+        ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -435,6 +522,7 @@ def exportar_excel(request):
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
+
 
 
 # -----------------------
@@ -561,20 +649,136 @@ def buscar_historico(request):
 
 @login_required
 def enviar_email_view(request):
-    if request.method == "POST":
-        destinatario = request.POST.get("destinatario", "").strip()
+    # ✅ Captura filtros (GET quando vem de Relatórios, POST quando envia o form)
+    data_tipo = (request.POST.get("data_tipo") or request.GET.get("data_tipo")or "cadastro").strip()
 
-        if not destinatario:
-            messages.error(request, "Email de destinatário é obrigatório.")
-            return redirect("enviar_email")
+    tipo = (request.POST.get("tipo") or request.GET.get("tipo") or "").strip()       # "", "rfid", "barcode"
+    status_filtro = (request.POST.get("status") or request.GET.get("status") or "").strip()
+    data_inicio = (request.POST.get("data_inicio") or request.GET.get("data_inicio") or "").strip()
+    data_fim = (request.POST.get("data_fim") or request.GET.get("data_fim") or "").strip()
 
-        try:
-            from io import BytesIO
+    # ✅ Resumo humano dos filtros (para mostrar no template e também no corpo do e-mail)
+    if tipo == "rfid":
+        tipo_label = "Somente RFID"
+    elif tipo == "barcode":
+        tipo_label = "Somente Código de Barras"
+    else:
+        tipo_label = "Todos"
 
-            hoje = timezone.now().date()
+    status_label = status_filtro if status_filtro else "Todos"
 
-            wb = Workbook()
-            ws = wb.active
+    if data_inicio or data_fim:
+        periodo_label = f"{data_inicio or '—'} até {data_fim or '—'}"
+    else:
+        periodo_label = "Todos"
+
+    data_tipo_label = "Data da Leitura" if data_tipo == "leitura" else "Data de Cadastro"
+
+    filtro_resumo = (
+        f"Tipo: {tipo_label} | "
+        f"Status: {status_label} | "
+        f"Data: {data_tipo_label} | "
+        f"Período: {periodo_label}"
+    )
+
+    # Helper: renderiza o template SEM perder filtros
+    def render_pagina(destinatario_value=""):
+        return render(
+            request,
+            "enviar_email.html",
+            {
+                "tipo_selected": tipo,
+                "status_selected": status_filtro,
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "filtro_resumo": filtro_resumo,
+                # ✅ para manter o campo preenchido caso dê erro
+                "destinatario_value": destinatario_value,
+            },
+        )
+
+    # ✅ Se for GET: só renderiza a página já mostrando o resumo e preservando filtros
+    if request.method != "POST":
+        return render_pagina()
+
+    # ---------------------------
+    # POST: enviar e-mail
+    # ---------------------------
+    destinatario = request.POST.get("destinatario", "").strip()
+
+    if not destinatario:
+        messages.error(request, "Email de destinatário é obrigatório.")
+        # ✅ não redireciona (senão perde filtros)
+        return render_pagina(destinatario_value=destinatario)
+
+    try:
+        from io import BytesIO
+
+        hoje = timezone.now().date()
+
+        # ✅ Base queryset (igual exportar_excel)
+        qs = Botijao.objects.filter(deletado=False).annotate(num_leituras=Count("leituras"))
+
+        # filtro status
+        if status_filtro:
+            qs = qs.filter(status=status_filtro)
+
+        # FILTRO POR DATA (CADASTRO OU LEITURA)
+        if data_inicio or data_fim:
+            if data_tipo == "leitura":
+                if data_inicio:
+                    qs = qs.filter(leituras__data_hora__date__gte=data_inicio)
+                if data_fim:
+                    qs = qs.filter(leituras__data_hora__date__lte=data_fim)
+                qs = qs.distinct()
+            else:
+                if data_inicio:
+                    qs = qs.filter(data_cadastro__date__gte=data_inicio)
+                if data_fim:
+                    qs = qs.filter(data_cadastro__date__lte=data_fim)
+
+
+        # filtro tipo (rfid x barcode)
+        if tipo == "rfid":
+            qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
+        elif tipo == "barcode":
+            qs = qs.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+
+        qs = qs.order_by("tag_rfid")
+
+        # ---------------------------
+        # ✅ Gera Excel em memória
+        # ---------------------------
+        wb = Workbook()
+        ws = wb.active
+
+        header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+
+        # ✅ Se tipo=barcode: gera planilha enxuta "de outra forma"
+        if tipo == "barcode":
+            ws.title = "Códigos de Barras"
+            headers = ["Código de Barras", "Status", "Total Leituras", "Data Cadastro", "Observação"]
+            ws.append(headers)
+
+            for cell in ws[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            for b in qs:
+                ws.append([
+                    b.tag_rfid,
+                    b.get_status_display(),
+                    b.num_leituras,
+                    b.data_cadastro.strftime("%d/%m/%Y %H:%M") if b.data_cadastro else "-",
+                    getattr(b, "observacao", None) or getattr(b, "observacao_interna", None) or "-",
+                ])
+
+            filename = f"relatorio_barcode_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        else:
+            # RFID ou TODOS: mesma estrutura do seu exportar_excel atual
             ws.title = "Cilindros RFID"
 
             headers = [
@@ -593,18 +797,13 @@ def enviar_email_view(request):
             ]
             ws.append(headers)
 
-            header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF", size=12)
-
             for cell in ws[1]:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            cilindros = Botijao.objects.filter(deletado=False).order_by("tag_rfid")
-
-            for c in cilindros:
-                status = _classificar_requal(c, hoje)
+            for c in qs:
+                status_requal = _classificar_requal(c, hoje)
                 dias = None
                 if c.data_proxima_requalificacao:
                     dias = (c.data_proxima_requalificacao - hoje).days
@@ -614,193 +813,105 @@ def enviar_email_view(request):
                     c.fabricante or "-",
                     c.numero_serie or "-",
                     float(c.tara) if c.tara is not None else "-",
-                    c.data_ultima_requalificacao.strftime("%d/%m/%Y")
-                    if c.data_ultima_requalificacao else "-",
-                    c.data_proxima_requalificacao.strftime("%d/%m/%Y")
-                    if c.data_proxima_requalificacao else "-",
+                    c.data_ultima_requalificacao.strftime("%d/%m/%Y") if c.data_ultima_requalificacao else "-",
+                    c.data_proxima_requalificacao.strftime("%d/%m/%Y") if c.data_proxima_requalificacao else "-",
                     dias if dias is not None else "-",
-                    status,
+                    status_requal,
                     c.penultima_envasadora or "-",
-                    c.data_penultimo_envasamento.strftime("%d/%m/%Y")
-                    if c.data_penultimo_envasamento else "-",
+                    c.data_penultimo_envasamento.strftime("%d/%m/%Y") if c.data_penultimo_envasamento else "-",
                     c.ultima_envasadora or "-",
-                    c.data_ultimo_envasamento.strftime("%d/%m/%Y")
-                    if c.data_ultimo_envasamento else "-",
+                    c.data_ultimo_envasamento.strftime("%d/%m/%Y") if c.data_ultimo_envasamento else "-",
                 ])
 
-            for column in ws.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except Exception:
-                        pass
-                adjusted_width = min(max_length + 2, 50)
-                ws.column_dimensions[column_letter].width = adjusted_width
-
-            excel_buffer = BytesIO()
-            wb.save(excel_buffer)
-            excel_buffer.seek(0)
-
-            data_hora_str = timezone.now().strftime("%d/%m/%Y às %H:%M")
             filename = f"relatorio_cilindros_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
-            total_cilindros = cilindros.count()
-            total_leituras = LeituraRFID.objects.count()
+        # auto width
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    max_length = max(max_length, len(str(cell.value)))
+                except Exception:
+                    pass
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
 
-            corpo_html = f"""
-            <!DOCTYPE html>
-            <html lang="pt-BR">
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {{
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        background: #f5f5f5;
-                        margin: 0;
-                        padding: 20px;
-                    }}
-                    .container {{
-                        max-width: 600px;
-                        margin: 0 auto;
-                        background: white;
-                        border-radius: 10px;
-                        overflow: hidden;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    }}
-                    .header {{
-                        background: linear-gradient(135deg, #00D4FF 0%, #7FFF00 100%);
-                        padding: 30px;
-                        text-align: center;
-                        color: white;
-                    }}
-                    .header h1 {{
-                        margin: 0;
-                        font-size: 28px;
-                    }}
-                    .content {{
-                        padding: 30px;
-                    }}
-                    .stats {{
-                        display: grid;
-                        grid-template-columns: repeat(3, 1fr);
-                        gap: 15px;
-                        margin: 20px 0;
-                    }}
-                    .stat-card {{
-                        background: #f8f9fa;
-                        padding: 15px;
-                        border-radius: 8px;
-                        text-align: center;
-                    }}
-                    .stat-value {{
-                        font-size: 24px;
-                        font-weight: bold;
-                        color: #00D4FF;
-                    }}
-                    .stat-label {{
-                        font-size: 12px;
-                        color: #666;
-                        margin-top: 5px;
-                    }}
-                    .footer {{
-                        background: #f8f9fa;
-                        padding: 20px;
-                        text-align: center;
-                        color: #666;
-                        font-size: 12px;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>RFID FLOW</h1>
-                        <p style="margin: 10px 0 0 0;">Relatório de Cilindros</p>
-                    </div>
+        excel_buffer = BytesIO()
+        wb.save(excel_buffer)
+        excel_buffer.seek(0)
 
-                    <div class="content">
-                        <h2 style="color: #333;">Olá!</h2>
-                        <p style="color: #666; line-height: 1.6;">
-                            Segue em anexo o relatório completo dos cilindros monitorados
-                            pelo sistema RFID Flow, gerado em <strong>{data_hora_str}</strong>.
-                        </p>
+        # ---------------------------
+        # ✅ Corpo do e-mail
+        # ---------------------------
+        data_hora_str = timezone.now().strftime("%d/%m/%Y às %H:%M")
+        total_cilindros = qs.count()
 
-                        <div class="stats">
-                            <div class="stat-card">
-                                <div class="stat-value">{total_cilindros}</div>
-                                <div class="stat-label">Total de Cilindros</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value">{total_leituras}</div>
-                                <div class="stat-label">Total de Leituras RFID</div>
-                            </div>
-                        </div>
+        # Mantém seu total de leituras global (você já fazia assim)
+        total_leituras = LeituraRFID.objects.count()
 
-                        <p style="color: #666; line-height: 1.6;">
-                            O arquivo Excel em anexo contém:
-                        </p>
-                        <ul style="color: #666; line-height: 1.8;">
-                            <li>Tags RFID e números de série</li>
-                            <li>Dados de fabricante</li>
-                            <li>Informações de requalificação</li>
-                            <li>Histórico de envasamentos (último e penúltimo)</li>
-                        </ul>
-                    </div>
+        corpo_html = f"""
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+        </head>
+        <body>
+            <div style="font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif;">
+                <h2>RFID FLOW - Relatório</h2>
+                <p>Relatório gerado em <strong>{data_hora_str}</strong>.</p>
+                <p><strong>Filtros aplicados:</strong> {filtro_resumo}</p>
 
-                    <div class="footer">
-                        <p><strong>RFID Flow</strong> - Rastreamento RFID de Cilindros</p>
-                        <p>Este é um email automático, por favor não responda.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
+                <p><strong>Total de itens no relatório:</strong> {total_cilindros}</p>
+                <p><strong>Total de leituras RFID no sistema:</strong> {total_leituras}</p>
 
-            email = EmailMessage(
-                subject=f"Relatório RFID Flow - {data_hora_str}",
-                body=corpo_html,
-                from_email="RFID Flow <noreply@rfidflow.com>",
-                to=[destinatario],
-            )
-            email.content_subtype = "html"
-            email.attach(
-                filename,
-                excel_buffer.getvalue(),
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
-            email.send(fail_silently=False)
+                <p>Segue anexo o arquivo Excel.</p>
+            </div>
+        </body>
+        </html>
+        """
 
-            messages.success(request, f"Relatório enviado para {destinatario}.")
-            return redirect("dashboard")
+        email = EmailMessage(
+            subject=f"Relatório RFID Flow - {data_hora_str}",
+            body=corpo_html,
+            from_email="RFID Flow <noreply@rfidflow.com>",
+            to=[destinatario],
+        )
+        email.content_subtype = "html"
+        email.attach(
+            filename,
+            excel_buffer.getvalue(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        email.send(fail_silently=False)
 
-        except Exception as e:
-            messages.error(request, f"Erro ao enviar email: {str(e)}")
-            return redirect("enviar_email")
+        messages.success(request, f"Relatório enviado para {destinatario}.")
+        return redirect("relatorios")
+    
 
-    return render(request, "enviar_email.html")
+    except Exception as e:
+        logger.exception("Erro ao enviar email")  # ✅ isso imprime traceback completo no console
+        messages.error(request, f"Erro ao enviar email: {str(e)}")
+        return render_pagina(destinatario_value=destinatario)
 
 
 # -----------------------
 # Criar admin temporário (Railway)
 # -----------------------
 
-def criar_admin_temp(request):
-    try:
-        if not User.objects.filter(username="rfidadmin").exists():
-            User.objects.create_superuser(
-                username="rfidadmin",
-                email="admin@rfidflow.com",
-                password="RFID@Admin2024!",
-            )
-            return HttpResponse(
-                "Superusuário criado. Username: rfidadmin | Senha: RFID@Admin2024!"
-            )
-        return HttpResponse("Superusuário já existe.")
-    except Exception as e:
-        return HttpResponse(f"Erro: {str(e)}")
+# def criar_admin_temp(request):
+#     try:
+#         if not User.objects.filter(username="rfidadmin").exists():
+#             User.objects.create_superuser(
+#                 username="rfidadmin",
+#                 email="admin@rfidflow.com",
+#                 password="RFID@Admin2024!",
+#             )
+#             return HttpResponse(
+#                 "Superusuário criado. Username: rfidadmin | Senha: RFID@Admin2024!"
+#             )
+#         return HttpResponse("Superusuário já existe.")
+#     except Exception as e:
+#         return HttpResponse(f"Erro: {str(e)}")
 
 
 # Aliases para URLs antigas
