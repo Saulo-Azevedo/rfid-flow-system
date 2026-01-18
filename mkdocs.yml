@@ -1,0 +1,25 @@
+site_name: RFID Flow - Documentação
+
+theme:
+  name: material
+  language: pt
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - mermaid2
+
+nav:
+  - Início: docs/index.md
+  - Arquitetura: docs/architecture.md
+  - Deploy: docs/deployment.md
+  - Manual do Operador: docs/operations_manual.md
+  - Manual do Admin: docs/admin_manual.md
+  - API: docs/api.md
+  - Modelo de Dados: docs/data_model.md
+  - Troubleshooting: docs/troubleshooting.md
