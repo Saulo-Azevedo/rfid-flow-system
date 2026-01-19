@@ -1,16 +1,12 @@
 # rfid/views_barcode.py
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 import json
 
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
-from .models import (
-    Botijao,
-    LeituraRFID,
-    LogAuditoria,
-    LeituraCodigoBarra
-)
+from django.views.decorators.csrf import csrf_exempt
+
+from .models import Botijao, LeituraCodigoBarra, LeituraRFID, LogAuditoria
 
 
 @csrf_exempt
@@ -23,7 +19,9 @@ def api_registrar_barcode(request):
         codigo = data.get("barcode", "").strip()
 
         if not codigo:
-            return JsonResponse({"success": False, "error": "Barcode vazio"}, status=400)
+            return JsonResponse(
+                {"success": False, "error": "Barcode vazio"}, status=400
+            )
 
         # --------------------------------------------
         # 1) SALVAR leitura de código de barras
@@ -32,7 +30,7 @@ def api_registrar_barcode(request):
             codigo=codigo,
             origem="PDA",
             operador="Automático",
-            observacao="Leitura via API/ABD"
+            observacao="Leitura via API/ABD",
         )
 
         # --------------------------------------------
@@ -53,18 +51,20 @@ def api_registrar_barcode(request):
                 acao="leitura",
                 usuario=None,
                 descricao="Leitura automática via Barcode",
-                dados_novos={"codigo": codigo}
+                dados_novos={"codigo": codigo},
             )
         except:
             pass
 
-        return JsonResponse({
-            "success": True,
-            "codigo": codigo,
-            "criado_novo": criado,
-            "id_leitura": leitura.id,
-            "data_hora": leitura.data_hora.strftime("%d/%m/%Y %H:%M:%S")
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "codigo": codigo,
+                "criado_novo": criado,
+                "id_leitura": leitura.id,
+                "data_hora": leitura.data_hora.strftime("%d/%m/%Y %H:%M:%S"),
+            }
+        )
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
@@ -79,25 +79,27 @@ def api_barcode_dashboard(request):
 
     leituras_hoje = LeituraCodigoBarra.objects.filter(data_hora__date=hoje).count()
 
-    ultimas = list(
-        LeituraCodigoBarra.objects.all().order_by("-data_hora")[:20]
-    )
+    ultimas = list(LeituraCodigoBarra.objects.all().order_by("-data_hora")[:20])
 
     dados = []
     for l in ultimas:
-        dados.append({
-            "codigo": l.codigo,
-            "origem": l.origem,
-            "operador": l.operador or "-",
-            "observacao": l.observacao or "-",
-            "data_hora": l.data_hora.strftime("%d/%m/%Y %H:%M:%S"),
-        })
+        dados.append(
+            {
+                "codigo": l.codigo,
+                "origem": l.origem,
+                "operador": l.operador or "-",
+                "observacao": l.observacao or "-",
+                "data_hora": l.data_hora.strftime("%d/%m/%Y %H:%M:%S"),
+            }
+        )
 
     ultimo = dados[0]["codigo"] if dados else None
 
-    return JsonResponse({
-        "success": True,
-        "total_hoje": leituras_hoje,
-        "ultimo_codigo": ultimo,
-        "leituras": dados
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "total_hoje": leituras_hoje,
+            "ultimo_codigo": ultimo,
+            "leituras": dados,
+        }
+    )

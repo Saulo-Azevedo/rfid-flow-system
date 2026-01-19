@@ -1,9 +1,9 @@
 import subprocess
 import time
 import xml.etree.ElementTree as ET
-import requests
 from pathlib import Path
 
+import requests
 
 # ================================
 # CONFIGURAÇÕES

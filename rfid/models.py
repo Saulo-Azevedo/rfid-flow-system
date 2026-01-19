@@ -1,7 +1,7 @@
 # rfid/models.py – MODELO FINAL AJUSTADO
+from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import User
 
 
 # ============================================================
@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 # ============================================================
 class BotijaoManager(models.Manager):
     """Retorna apenas botijões não deletados."""
+
     def get_queryset(self):
         return super().get_queryset().filter(deletado=False)
 
@@ -33,99 +34,64 @@ class Botijao(models.Model):
     ]
 
     # -------- CAMPOS PRINCIPAIS --------
-    tag_rfid = models.CharField(
-        max_length=200,
-        unique=True,
-        verbose_name="Tag RFID"
-    )
+    tag_rfid = models.CharField(max_length=200, unique=True, verbose_name="Tag RFID")
 
     fabricante = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Fabricante"
+        max_length=200, blank=True, null=True, verbose_name="Fabricante"
     )
 
     numero_serie = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        verbose_name="Número de Série"
+        max_length=100, blank=True, null=True, verbose_name="Número de Série"
     )
 
     tara = models.DecimalField(
-        max_digits=6,
-        decimal_places=2,
-        blank=True,
-        null=True,
-        verbose_name="Tara (kg)"
+        max_digits=6, decimal_places=2, blank=True, null=True, verbose_name="Tara (kg)"
     )
 
     # -------- REQUALIFICAÇÃO --------
     data_ultima_requalificacao = models.DateField(
-        blank=True,
-        null=True,
-        verbose_name="Última Requalificação"
+        blank=True, null=True, verbose_name="Última Requalificação"
     )
 
     data_proxima_requalificacao = models.DateField(
-        blank=True,
-        null=True,
-        verbose_name="Próxima Requalificação"
+        blank=True, null=True, verbose_name="Próxima Requalificação"
     )
 
     status_requalificacao = models.CharField(
         max_length=20,
         choices=STATUS_REQUALIFICACAO_CHOICES,
         default="pendente",
-        verbose_name="Status da Requalificação"
+        verbose_name="Status da Requalificação",
     )
 
     # -------- ENVASAMENTO --------
     penultima_envasadora = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Penúltima Envasadora"
+        max_length=200, blank=True, null=True, verbose_name="Penúltima Envasadora"
     )
 
     data_penultimo_envasamento = models.DateField(
-        blank=True,
-        null=True,
-        verbose_name="Data do Penúltimo Envasamento"
+        blank=True, null=True, verbose_name="Data do Penúltimo Envasamento"
     )
 
     ultima_envasadora = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Última Envasadora"
+        max_length=200, blank=True, null=True, verbose_name="Última Envasadora"
     )
 
     data_ultimo_envasamento = models.DateField(
-        blank=True,
-        null=True,
-        verbose_name="Data do Último Envasamento"
+        blank=True, null=True, verbose_name="Data do Último Envasamento"
     )
 
     data_cadastro = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Data de Cadastro"
+        auto_now_add=True, verbose_name="Data de Cadastro"
     )
 
     # -------- STATUS GERAL --------
     status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="ativo",
-        verbose_name="Status"
+        max_length=20, choices=STATUS_CHOICES, default="ativo", verbose_name="Status"
     )
 
     # -------- ESTATÍSTICAS --------
-    total_leituras = models.IntegerField(
-        default=0,
-        verbose_name="Total de Leituras"
-    )
+    total_leituras = models.IntegerField(default=0, verbose_name="Total de Leituras")
 
     # -------- SOFT DELETE --------
     deletado = models.BooleanField(default=False)
@@ -135,13 +101,13 @@ class Botijao(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="botijoes_deletados"
+        related_name="botijoes_deletados",
     )
     motivo_delecao = models.TextField(blank=True, null=True)
 
     # -------- MANAGERS --------
-    objects = BotijaoManager()       # sem deletados
-    all_objects = models.Manager()   # com deletados
+    objects = BotijaoManager()  # sem deletados
+    all_objects = models.Manager()  # com deletados
 
     # ============================================================
     # META
@@ -188,9 +154,7 @@ class Botijao(models.Model):
 # ============================================================
 class LeituraRFID(models.Model):
     botijao = models.ForeignKey(
-        Botijao,
-        on_delete=models.CASCADE,
-        related_name="leituras"
+        Botijao, on_delete=models.CASCADE, related_name="leituras"
     )
 
     data_hora = models.DateTimeField(auto_now_add=True)
@@ -228,11 +192,7 @@ class LogAuditoria(models.Model):
         ("leitura", "Leitura RFID"),
     ]
 
-    botijao = models.ForeignKey(
-        Botijao,
-        on_delete=models.CASCADE,
-        related_name="logs"
-    )
+    botijao = models.ForeignKey(Botijao, on_delete=models.CASCADE, related_name="logs")
     acao = models.CharField(max_length=20, choices=ACAO_CHOICES)
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     data_hora = models.DateTimeField(auto_now_add=True)
@@ -247,15 +207,25 @@ class LogAuditoria(models.Model):
         return f"{self.acao} – {self.botijao.tag_rfid}"
 
     @classmethod
-    def criar_log(cls, botijao, acao, usuario=None, descricao="", dados_anteriores=None, dados_novos=None):
+    def criar_log(
+        cls,
+        botijao,
+        acao,
+        usuario=None,
+        descricao="",
+        dados_anteriores=None,
+        dados_novos=None,
+    ):
         return cls.objects.create(
             botijao=botijao,
             acao=acao,
             usuario=usuario,
             descricao=descricao,
             dados_anteriores=dados_anteriores,
-            dados_novos=dados_novos
+            dados_novos=dados_novos,
         )
+
+
 class ImportacaoXLS(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     arquivo_nome = models.CharField(max_length=300)
@@ -274,22 +244,16 @@ class ImportacaoXLS(models.Model):
 
 # rfid/models.py
 
+
 class LeituraCodigoBarra(models.Model):
     codigo = models.CharField(max_length=200)
     origem = models.CharField(
         max_length=50,
         default="PDA",
-        help_text="Origem da leitura (PDA, manual, outro)."
+        help_text="Origem da leitura (PDA, manual, outro).",
     )
-    operador = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True
-    )
-    observacao = models.TextField(
-        blank=True,
-        null=True
-    )
+    operador = models.CharField(max_length=100, blank=True, null=True)
+    observacao = models.TextField(blank=True, null=True)
     data_hora = models.DateTimeField(auto_now_add=True)
 
     class Meta:

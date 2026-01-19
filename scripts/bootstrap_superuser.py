@@ -10,10 +10,11 @@ def main() -> int:
     # Seu projeto Django (pasta que tem settings.py) é "rfid"
     os.environ.setdefault(
         "DJANGO_SETTINGS_MODULE",
-        os.getenv("DJANGO_SETTINGS_MODULE", "rfid.settings").strip()
+        os.getenv("DJANGO_SETTINGS_MODULE", "rfid.settings").strip(),
     )
 
     import django
+
     django.setup()
 
     from django.contrib.auth import get_user_model
@@ -29,7 +30,9 @@ def main() -> int:
 
     # Se faltarem variáveis, não quebra deploy; só avisa e segue
     if not username or not email or not password:
-        print("⚠️ DJANGO_SUPERUSER_* não definidos (USERNAME/EMAIL/PASSWORD). Pulando bootstrap do superusuário.")
+        print(
+            "⚠️ DJANGO_SUPERUSER_* não definidos (USERNAME/EMAIL/PASSWORD). Pulando bootstrap do superusuário."
+        )
         return 0
 
     # 1) Tenta achar por username
@@ -52,17 +55,12 @@ def main() -> int:
         try:
             # Modelo padrão do Django (username + email)
             user = User.objects.create_superuser(
-                username=username,
-                email=email,
-                password=password
+                username=username, email=email, password=password
             )
         except TypeError:
             # Alguns projetos usam email como identificador (sem username)
             # Tentamos criar superuser com email apenas
-            user = User.objects.create_superuser(
-                email=email,
-                password=password
-            )
+            user = User.objects.create_superuser(email=email, password=password)
 
         print(f"✅ Superusuário criado: {getattr(user, 'username', email)}")
         return 0

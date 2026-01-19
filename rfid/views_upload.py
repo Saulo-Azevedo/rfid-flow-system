@@ -1,13 +1,15 @@
 import os
+
 import pandas as pd
-from django.shortcuts import render
 from django.conf import settings
+from django.shortcuts import render
+
 
 def upload_xls(request):
     mensagem = None
 
-    if request.method == 'POST':
-        arquivo = request.FILES['arquivo']
+    if request.method == "POST":
+        arquivo = request.FILES["arquivo"]
         nome = arquivo.name
 
         # Criar pasta isolada
@@ -17,7 +19,7 @@ def upload_xls(request):
         caminho_arquivo = os.path.join(destino, nome)
 
         # Salvar arquivo
-        with open(caminho_arquivo, 'wb+') as destino_arquivo:
+        with open(caminho_arquivo, "wb+") as destino_arquivo:
             for chunk in arquivo.chunks():
                 destino_arquivo.write(chunk)
 
