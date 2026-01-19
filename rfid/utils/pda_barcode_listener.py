@@ -39,7 +39,7 @@ def dump_xml():
     # salva para debug
     try:
         DUMP_DEBUG.write_text(xml, encoding="utf-8")
-    except:
+    except Exception:
         pass
 
     return xml

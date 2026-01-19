@@ -1,4 +1,6 @@
 site_name: RFID Flow - Documentação
+site_url: https://saulo-azevedo.github.io/rfid-flow-system/
+
 
 theme:
   name: material
@@ -15,11 +17,11 @@ plugins:
   - mermaid2
 
 nav:
-  - Início: docs/index.md
-  - Arquitetura: docs/architecture.md
-  - Deploy: docs/deployment.md
-  - Manual do Operador: docs/operations_manual.md
-  - Manual do Admin: docs/admin_manual.md
-  - API: docs/api.md
-  - Modelo de Dados: docs/data_model.md
-  - Troubleshooting: docs/troubleshooting.md
+  - Início: index.md
+  - Arquitetura: architecture.md
+  - Deploy: deployment.md
+  - Manual do Operador: operations_manual.md
+  - Manual do Admin: admin_manual.md
+  - API: api.md
+  - Modelo de Dados: data_model.md
+  - Troubleshooting: troubleshooting.md

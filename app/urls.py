@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.urls import include, path
-
-# from rfid.views import criar_admin_temp
+from django.conf import settings
+from django.conf.urls.static import static
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -9,10 +10,11 @@ urlpatterns = [
     path("api/barcode/", include("rfid.urls_barcode")),
     # path('criar-admin-temp/', criar_admin_temp),
     path("", include("rfid.urls")),
+
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]
 
-from django.conf import settings
-from django.conf.urls.static import static
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

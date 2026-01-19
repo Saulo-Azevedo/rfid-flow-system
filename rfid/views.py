@@ -1,29 +1,30 @@
 # rfid/views.py
-
+import json  # <--- Necessário para ler o corpo da requisição
 import logging
 
-logger = logging.getLogger(__name__)
+from rest_framework.decorators import api_view
+from rest_framework import serializers
 
-import json  # <--- Necessário para ler o corpo da requisição
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
+
+from .models import Botijao, LeituraRFID, LogAuditoria
+from .forms import BotijaoForm
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from django.views.decorators.csrf import csrf_exempt 
 from datetime import timedelta
-
+from django.utils import timezone
+from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse  # <--- Necessário para a API
+from django.http import HttpResponse
+from django.core.mail import EmailMessage
+from django.db.models import Count, Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.core.mail import EmailMessage
-from django.db.models import Count, Q
 
-# ... outros imports que já existiam ...
-from django.http import JsonResponse  # <--- Necessário para a API
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt  # <--- O QUE FALTOU
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
 
-from .forms import BotijaoForm
-from .models import Botijao, LeituraRFID, LogAuditoria
+logger = logging.getLogger(__name__)
 
 # -----------------------
 # Helpers de requalificação
@@ -631,7 +632,7 @@ def buscar_historico(request):
 
         leituras_data = [
             {
-                "data_hora": l.data_hora.strftime("%d/%m/%Y %H:%M:%S"),
+                "data_hora": l.data_hora,
                 "operador": l.operador or "-",
                 "observacao": l.observacao or "-",
             }
@@ -975,25 +976,6 @@ def enviar_email_view(request):
         return render_pagina(destinatario_value=destinatario)
 
 
-# -----------------------
-# Criar admin temporário (Railway)
-# -----------------------
-
-# def criar_admin_temp(request):
-#     try:
-#         if not User.objects.filter(username="rfidadmin").exists():
-#             User.objects.create_superuser(
-#                 username="rfidadmin",
-#                 email="admin@rfidflow.com",
-#                 password="RFID@Admin2024!",
-#             )
-#             return HttpResponse(
-#                 "Superusuário criado. Username: rfidadmin | Senha: RFID@Admin2024!"
-#             )
-#         return HttpResponse("Superusuário já existe.")
-#     except Exception as e:
-#         return HttpResponse(f"Erro: {str(e)}")
-
 
 # Aliases para URLs antigas
 historico_busca = buscar_historico
@@ -1003,8 +985,78 @@ enviar_relatorio_view = enviar_email_view
 # -----------------------
 # API para registrar leitura RFID
 # -----------------------
+@extend_schema(
+    tags=["RFID"],
+    summary="Registrar leitura RFID",
+    description=(
+        "Recebe uma leitura RFID enviada pelo coletor (ex.: PDA_C72) e registra no sistema. "
+        "Se o botijão ainda não existir, ele é criado automaticamente."
+    ),
+    auth=[],
+    request=inline_serializer(
+        name="RFIDLeituraRequest",
+        fields={
+            "tag_rfid": serializers.CharField(
+                help_text="EPC/Tag RFID lida pelo coletor",
+                default="E2000017221101441890ABCD",
+            ),
+            "operador": serializers.CharField(
+                required=False,
+                help_text="Identificação do operador/dispositivo",
+                default="PDA_C72",
+            ),
+            "observacao": serializers.CharField(
+                required=False,
+                help_text="Observação livre",
+                default="Leitura Mobile",
+            ),
+        },
+    ),
+    responses={
+        200: inline_serializer(
+            name="RFIDLeituraResponseOK",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+                "id_leitura": serializers.IntegerField(),
+            },
+        ),
+        400: inline_serializer(
+            name="RFIDLeituraResponseBadRequest",
+            fields={
+                "success": serializers.BooleanField(),
+                "error": serializers.CharField(),
+            },
+        ),
+        405: inline_serializer(
+            name="RFIDLeituraResponseMethodNotAllowed",
+            fields={
+                "success": serializers.BooleanField(),
+                "error": serializers.CharField(),
+            },
+        ),
+        500: inline_serializer(
+            name="RFIDLeituraResponseServerError",
+            fields={
+                "success": serializers.BooleanField(),
+                "error": serializers.CharField(),
+            },
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "Exemplo RFID (sucesso)",
+            value={
+                "tag_rfid": "E2000017221101441890ABCD",
+                "operador": "PDA_C72",
+                "observacao": "Leitura Mobile",
+            },
+            request_only=True,
+        ),
+    ],
+)
 
-
+@api_view(["POST"])
 @csrf_exempt  # <--- Isso permite que o Android envie dados sem token de navegador
 def api_registrar_leitura(request):
     if request.method != "POST":

@@ -7,7 +7,7 @@ Este repositório contém o sistema **RFID Flow**, uma aplicação web para cont
 - Registra histórico de leituras
 - Exibe dashboard operacional e relatórios
 - Permite importação via planilha (XLS/XLSX)
-- Envia relatórios por e-mail (quando configurado)
+- Envia relatórios por e-mail 
 
 ## Links úteis (rotas)
 - Dashboard: `/`

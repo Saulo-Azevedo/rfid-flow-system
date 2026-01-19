@@ -8,7 +8,13 @@
       
       
       
+        <link rel="canonical" href="https://saulo-azevedo.github.io/rfid-flow-system/deployment/">
       
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../operations_manual/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -16,7 +22,7 @@
     
     
       
-        <title>Deploy (Produção) - RFID Flow - Documentação</title>
+        <title>Deploy - RFID Flow - Documentação</title>
       
     
     
@@ -92,7 +98,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Deploy (Produção)
+              Deploy
             
           </span>
         </div>
@@ -163,7 +169,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/index.md" class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
     
@@ -180,7 +186,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/architecture.md" class="md-tabs__link">
+      <a href="../architecture/" class="md-tabs__link">
         
   
     
@@ -195,9 +201,11 @@
         
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../docs/deployment.md" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
     
@@ -214,7 +222,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/operations_manual.md" class="md-tabs__link">
+      <a href="../operations_manual/" class="md-tabs__link">
         
   
     
@@ -231,7 +239,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/admin_manual.md" class="md-tabs__link">
+      <a href="../admin_manual/" class="md-tabs__link">
         
   
     
@@ -248,7 +256,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/api.md" class="md-tabs__link">
+      <a href="../api/" class="md-tabs__link">
         
   
     
@@ -265,7 +273,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/data_model.md" class="md-tabs__link">
+      <a href="../data_model/" class="md-tabs__link">
         
   
     
@@ -282,7 +290,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/troubleshooting.md" class="md-tabs__link">
+      <a href="../troubleshooting/" class="md-tabs__link">
         
   
     
@@ -334,7 +342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/index.md" class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -354,7 +362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/architecture.md" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -371,10 +379,30 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../docs/deployment.md" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Deploy
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -383,6 +411,62 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#variaveis-de-ambiente" class="md-nav__link">
+    <span class="md-ellipsis">
+      Variáveis de ambiente
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comando-de-start-railway" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comando de start (Railway)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checklist-de-producao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist de produção
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-do-banco-exemplo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backup do banco (exemplo)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -394,7 +478,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/operations_manual.md" class="md-nav__link">
+      <a href="../operations_manual/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -414,7 +498,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/admin_manual.md" class="md-nav__link">
+      <a href="../admin_manual/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -434,7 +518,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/api.md" class="md-nav__link">
+      <a href="../api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -454,7 +538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/data_model.md" class="md-nav__link">
+      <a href="../data_model/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -474,7 +558,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/troubleshooting.md" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   <span class="md-ellipsis">

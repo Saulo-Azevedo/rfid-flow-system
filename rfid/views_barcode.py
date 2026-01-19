@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Botijao, LeituraCodigoBarra, LeituraRFID, LogAuditoria
+from .models import Botijao, LeituraCodigoBarra, LogAuditoria
 
 
 @csrf_exempt
@@ -53,7 +53,7 @@ def api_registrar_barcode(request):
                 descricao="Leitura automática via Barcode",
                 dados_novos={"codigo": codigo},
             )
-        except:
+        except Exception:
             pass
 
         return JsonResponse(

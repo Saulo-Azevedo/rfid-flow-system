@@ -8,7 +8,13 @@
       
       
       
+        <link rel="canonical" href="https://saulo-azevedo.github.io/rfid-flow-system/api/">
       
+      
+        <link rel="prev" href="../admin_manual/">
+      
+      
+        <link rel="next" href="../data_model/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -16,7 +22,7 @@
     
     
       
-        <title>API (Integrações) - RFID Flow - Documentação</title>
+        <title>API - RFID Flow - Documentação</title>
       
     
     
@@ -58,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#api-integracoes" class="md-skip">
+        <a href="#api-integracoes-rfid-flow" class="md-skip">
           Ir para o conteúdo
         </a>
       
@@ -92,7 +98,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              API (Integrações)
+              API
             
           </span>
         </div>
@@ -163,7 +169,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/index.md" class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
     
@@ -180,7 +186,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/architecture.md" class="md-tabs__link">
+      <a href="../architecture/" class="md-tabs__link">
         
   
     
@@ -197,7 +203,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/deployment.md" class="md-tabs__link">
+      <a href="../deployment/" class="md-tabs__link">
         
   
     
@@ -214,7 +220,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/operations_manual.md" class="md-tabs__link">
+      <a href="../operations_manual/" class="md-tabs__link">
         
   
     
@@ -231,7 +237,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/admin_manual.md" class="md-tabs__link">
+      <a href="../admin_manual/" class="md-tabs__link">
         
   
     
@@ -246,9 +252,11 @@
         
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../docs/api.md" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
     
@@ -265,7 +273,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/data_model.md" class="md-tabs__link">
+      <a href="../data_model/" class="md-tabs__link">
         
   
     
@@ -282,7 +290,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docs/troubleshooting.md" class="md-tabs__link">
+      <a href="../troubleshooting/" class="md-tabs__link">
         
   
     
@@ -334,7 +342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/index.md" class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -354,7 +362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/architecture.md" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -374,7 +382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/deployment.md" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -394,7 +402,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/operations_manual.md" class="md-nav__link">
+      <a href="../operations_manual/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -414,7 +422,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/admin_manual.md" class="md-nav__link">
+      <a href="../admin_manual/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -431,10 +439,30 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../docs/api.md" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -443,6 +471,86 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#visao-geral" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 Visão Geral
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoint-registro-de-leitura-rfid" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛰️ Endpoint – Registro de Leitura RFID
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🛰️ Endpoint – Registro de Leitura RFID">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parametros-do-body" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔍 Parâmetros do Body
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#respostas-disponiveis" class="md-nav__link">
+    <span class="md-ellipsis">
+      📥 Respostas Disponíveis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoints-de-dashboard-e-relatorios-ajax" class="md-nav__link">
+    <span class="md-ellipsis">
+      📊 Endpoints de Dashboard e Relatórios (AJAX)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ambientes-e-versionamento" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛠️ Ambientes e Versionamento
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -454,7 +562,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/data_model.md" class="md-nav__link">
+      <a href="../data_model/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -474,7 +582,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docs/troubleshooting.md" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -516,26 +624,35 @@
         <li class="md-nav__item">
   <a href="#visao-geral" class="md-nav__link">
     <span class="md-ellipsis">
-      Visão geral
+      📋 Visão Geral
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Visão geral">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoint-registro-de-leitura-rfid" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛰️ Endpoint – Registro de Leitura RFID
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🛰️ Endpoint – Registro de Leitura RFID">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#registro-de-leitura-rfid" class="md-nav__link">
+  <a href="#parametros-do-body" class="md-nav__link">
     <span class="md-ellipsis">
-      Registro de leitura RFID
+      🔍 Parâmetros do Body
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#barcode" class="md-nav__link">
+  <a href="#respostas-disponiveis" class="md-nav__link">
     <span class="md-ellipsis">
-      Barcode
+      📥 Respostas Disponíveis
     </span>
   </a>
   
@@ -547,9 +664,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#recomendacao-padrao-de-mercado" class="md-nav__link">
+  <a href="#endpoints-de-dashboard-e-relatorios-ajax" class="md-nav__link">
     <span class="md-ellipsis">
-      Recomendação (padrão de mercado)
+      📊 Endpoints de Dashboard e Relatórios (AJAX)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ambientes-e-versionamento" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛠️ Ambientes e Versionamento
     </span>
   </a>
   
@@ -570,28 +696,116 @@
                   
 
 
-<h1 id="api-integracoes">API (Integrações)</h1>
-<h2 id="visao-geral">Visão geral</h2>
-<p>A aplicação expõe endpoints para registrar leituras e obter dados do dashboard.</p>
-<h3 id="registro-de-leitura-rfid">Registro de leitura RFID</h3>
+<h1 id="api-integracoes-rfid-flow">API – Integrações (RFID Flow)</h1>
+<h2 id="visao-geral">📋 Visão Geral</h2>
+<p>O <strong>RFID Flow</strong> disponibiliza uma API HTTP para integração com dispositivos coletores RFID, leitores de código de barras e sistemas externos. A API é responsável por registrar leituras, consultar dados e alimentar dashboards.</p>
+<p>Toda a especificação é documentada via <strong>Swagger / OpenAPI</strong>.</p>
+<hr />
+<h2 id="endpoint-registro-de-leitura-rfid">🛰️ Endpoint – Registro de Leitura RFID</h2>
+<p>Registra uma leitura enviada por um coletor. Se o botijão não existir, ele é criado automaticamente.</p>
 <ul>
-<li><strong>Endpoint:</strong> <code>POST /api/registrar-leitura/</code></li>
-<li><strong>Objetivo:</strong> registrar uma leitura RFID.</li>
+<li><strong>Método:</strong> <code>POST</code></li>
+<li><strong>URL:</strong> <code>/api/registrar-leitura/</code></li>
+</ul>
+<h3 id="parametros-do-body">🔍 Parâmetros do Body</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: left;">Obrigatório</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>tag_rfid</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;"><strong>Sim</strong></td>
+<td style="text-align: left;">EPC / Tag RFID lida pelo coletor</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>operador</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Não</td>
+<td style="text-align: left;">Identificação do dispositivo ou operador</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>observacao</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Não</td>
+<td style="text-align: left;">Observação livre associada à leitura</td>
+</tr>
+</tbody>
+</table>
+<h3 id="respostas-disponiveis">📥 Respostas Disponíveis</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Status</th>
+<th style="text-align: left;">Descrição</th>
+<th style="text-align: left;">Exemplo de JSON</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>200</strong></td>
+<td style="text-align: left;">Sucesso</td>
+<td style="text-align: left;"><code>{"success": true, "message": "Sucesso", "id_leitura": 123}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>400</strong></td>
+<td style="text-align: left;">Requisição Inválida</td>
+<td style="text-align: left;"><code>{"success": false, "error": "Tag RFID faltando"}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>405</strong></td>
+<td style="text-align: left;">Método Incorreto</td>
+<td style="text-align: left;"><code>{"success": false, "error": "Use POST"}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>500</strong></td>
+<td style="text-align: left;">Erro Interno</td>
+<td style="text-align: left;"><code>{"success": false, "error": "Descrição do erro"}</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="endpoints-de-dashboard-e-relatorios-ajax">📊 Endpoints de Dashboard e Relatórios (AJAX)</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Método</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/api/dashboard/</code></td>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">Dados consolidados (total cilindros, leituras 7 dias, etc)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/relatorios/</code></td>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">Consulta estruturada para filtros e análises</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="ambientes-e-versionamento">🛠️ Ambientes e Versionamento</h2>
+<p><strong>Tabela de Ambientes</strong></p>
+<ul>
+<li><strong>Local:</strong> <code>http://127.0.0.1:8000</code></li>
+<li><strong>Homologação:</strong> <code>https://&lt;dominio-hml&gt;</code></li>
+<li><strong>Produção:</strong> <code>https://&lt;dominio-prod&gt;</code></li>
 </ul>
 <blockquote>
-<p>Observação: o payload exato deve refletir o formato enviado pelo coletor. Documente aqui com exemplos reais do cliente.</p>
+<p><strong>Nota sobre Versionamento:</strong> Atualmente a API não usa prefixo de versão. Recomenda-se o uso futuro de <code>/api/v1/</code> para evitar quebras de compatibilidade.</p>
 </blockquote>
-<h3 id="barcode">Barcode</h3>
-<ul>
-<li><strong>Página de leitura:</strong> <code>GET /api/barcode/leitura/</code></li>
-<li><strong>Registrar:</strong> <code>POST /api/barcode/registrar/</code></li>
-<li><strong>Dados para dashboard:</strong> <code>GET /api/barcode/dashboard/</code></li>
-</ul>
-<h2 id="recomendacao-padrao-de-mercado">Recomendação (padrão de mercado)</h2>
-<ul>
-<li>Adicionar Swagger/OpenAPI para referência automatizada.</li>
-<li>Versionar endpoints (ex: <code>/api/v1/...</code>).</li>
-</ul>
+<hr />
+<p>⚠️ <em>A documentação Swagger reflete automaticamente os endpoints disponíveis e ativos.</em></p>
 
 
 

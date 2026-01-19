@@ -25,6 +25,4 @@ flowchart LR
 - **ImportacaoXLS:** registro de importações de planilhas
 
 ## Pontos de atenção (boas práticas)
-- Configurar `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` via variáveis de ambiente
-- Evitar `print()` em produção (substituir por logging)
-- Manter endpoints de integração versionados quando possível (ex: `/api/v1/...`)
+- Configurado `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` via variáveis de ambiente
