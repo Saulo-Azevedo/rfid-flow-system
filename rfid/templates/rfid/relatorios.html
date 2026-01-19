@@ -179,7 +179,7 @@
             <table class="table table-hover">
                 <thead>
                 <tr>
-                    <th>Última Leitura</th>
+                    {% comment %} <th>Última Leitura</th> {% endcomment %}
                     <th>Tag RFID</th>
                     <th>Nº Série</th>
                     <th>Fabricante</th>
@@ -200,11 +200,11 @@
                 <tbody>
                 {% for b in botijoes %}
                     <tr>
-                        <td>
+                        {% comment %} <td>
                             {% if b.ultima_leitura %}
                                 {{ b.ultima_leitura|date:"d/m/Y H:i" }}
                             {% else %}-{% endif %}
-                        </td>
+                        </td> {% endcomment %}
                         <td>{{ b.tag_rfid }}</td>
                         <td>{{ b.numero_serie|default:"-" }}</td>
                         <td>{{ b.fabricante|default:"-" }}</td>
