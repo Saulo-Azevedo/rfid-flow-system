@@ -1,9 +1,10 @@
 # rfid/views_import.py
 
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from .models import Botijao, LeituraRFID
 import pandas as pd
+from django.contrib import messages
+from django.shortcuts import redirect, render
+
+from .models import Botijao, LeituraRFID
 
 
 # =============================
@@ -74,7 +75,11 @@ def confirmar_import(request):
     # Limpa prévia da sessão
     request.session.pop("import_preview", None)
 
-    return render(request, "rfid/confirmar_import.html", {
-        "novos_botijoes": novos,
-        "qtd": leituras,
-    })
+    return render(
+        request,
+        "rfid/confirmar_import.html",
+        {
+            "novos_botijoes": novos,
+            "qtd": leituras,
+        },
+    )

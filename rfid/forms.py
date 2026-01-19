@@ -1,5 +1,7 @@
 from django import forms
+
 from .models import Botijao
+
 
 class BotijaoForm(forms.ModelForm):
     class Meta:
@@ -22,19 +24,16 @@ class BotijaoForm(forms.ModelForm):
             "fabricante": forms.TextInput(attrs={"class": "form-control"}),
             "numero_serie": forms.TextInput(attrs={"class": "form-control"}),
             "tara": forms.NumberInput(attrs={"class": "form-control"}),
-
             "data_ultima_requalificacao": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}
             ),
             "data_proxima_requalificacao": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}
             ),
-
             "penultima_envasadora": forms.TextInput(attrs={"class": "form-control"}),
             "data_penultimo_envasamento": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}
             ),
-
             "ultima_envasadora": forms.TextInput(attrs={"class": "form-control"}),
             "data_ultimo_envasamento": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}

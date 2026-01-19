@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static tz %}
+
 
 {% block content %}
 
@@ -405,7 +406,14 @@
                             <tbody>
                                 {% for l in r.leituras %}
                                     <tr>
-                                        <td>{{ l.data_hora }}</td>
+                                        <td>
+                                            {% if l.data_hora %}
+                                                {{ l.data_hora|localtime|date:"d/m/Y H:i" }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        
                                         <td>{{ l.operador }}</td>
                                         <td>{{ l.observacao }}</td>
                                     </tr>

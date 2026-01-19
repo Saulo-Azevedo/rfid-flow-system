@@ -1,35 +1,35 @@
 # rfid/views.py
-
+import json  # <--- Necessário para ler o corpo da requisição
 import logging
-logger = logging.getLogger(__name__)
 
-from datetime import timedelta
+from rest_framework.decorators import api_view
+from rest_framework import serializers
 
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.core.mail import EmailMessage
-from django.db.models import Q, Count
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from django.utils import timezone
-from django.shortcuts import render, redirect
-
-# ... outros imports que já existiam ...
-from django.http import JsonResponse           # <--- Necessário para a API
-from django.views.decorators.csrf import csrf_exempt  # <--- O QUE FALTOU
-import json                                    # <--- Necessário para ler o corpo da requisição
-
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
 
 from .models import Botijao, LeituraRFID, LogAuditoria
 from .forms import BotijaoForm
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from django.views.decorators.csrf import csrf_exempt 
+from datetime import timedelta
+from django.utils import timezone
+from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse  # <--- Necessário para a API
+from django.http import HttpResponse
+from django.core.mail import EmailMessage
+from django.db.models import Count, Q
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 
+
+logger = logging.getLogger(__name__)
 
 # -----------------------
 # Helpers de requalificação
 # -----------------------
+
 
 def _classificar_requal(botijao, hoje):
     """
@@ -50,6 +50,7 @@ def _classificar_requal(botijao, hoje):
 # Dashboard
 # -----------------------
 
+
 @login_required
 def dashboard(request):
     hoje = timezone.now().date()
@@ -57,19 +58,20 @@ def dashboard(request):
     # Estatísticas principais
     total_botijoes = Botijao.objects.filter(deletado=False).count()
     leituras_hoje = LeituraRFID.objects.filter(data_hora__date=hoje).count()
-    
+
     # Botijões ativos = próximos da requalificação ou dentro da validade
-    botijoes_ativos = Botijao.objects.filter(
-        deletado=False
-    ).exclude(status_requalificacao="vencida").count()
+    botijoes_ativos = (
+        Botijao.objects.filter(deletado=False)
+        .exclude(status_requalificacao="vencida")
+        .count()
+    )
 
     # --- Últimos botijões cadastrados + total de leituras ---
 
     RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$"
 
     botijoes = (
-        Botijao.objects
-        .filter(deletado=False, tag_rfid__regex=RFID_TAG_REGEX)
+        Botijao.objects.filter(deletado=False, tag_rfid__regex=RFID_TAG_REGEX)
         .annotate(num_leituras=Count("leituras"))
         .order_by("-id")[:10]
     )
@@ -78,10 +80,12 @@ def dashboard(request):
     leituras_7_dias = []
     for i in range(6, -1, -1):
         dia = hoje - timedelta(days=i)
-        leituras_7_dias.append({
-            "data": dia.strftime("%d/%m"),
-            "total": LeituraRFID.objects.filter(data_hora__date=dia).count()
-        })
+        leituras_7_dias.append(
+            {
+                "data": dia.strftime("%d/%m"),
+                "total": LeituraRFID.objects.filter(data_hora__date=dia).count(),
+            }
+        )
 
     # Requalificação
     cilindros = Botijao.objects.filter(deletado=False)
@@ -103,23 +107,19 @@ def dashboard(request):
 
     # Últimas leituras
     ultimas_leituras = (
-        LeituraRFID.objects
-        .select_related("botijao")
+        LeituraRFID.objects.select_related("botijao")
         .filter(botijao__tag_rfid__regex=RFID_TAG_REGEX)
         .order_by("-data_hora")[:10]
-    )   
+    )
 
     # CONTEXTO FINAL — **somente UM return**, no fim!
     context = {
         "total_botijoes": total_botijoes,
         "leituras_hoje": leituras_hoje,
         "botijoes_ativos": botijoes_ativos,
-
         "botijoes": botijoes,
         "ultimas_leituras": ultimas_leituras,
-
         "leituras_7_dias": leituras_7_dias,
-
         "qtd_requal_vencidas": len(requal_vencidas),
         "qtd_requal_proximas": len(requal_proximas),
         "qtd_requal_em_dia": len(requal_em_dia),
@@ -141,10 +141,12 @@ def dashboard_api(request):
     for i in range(6, -1, -1):
         dia = hoje - timedelta(days=i)
         count = LeituraRFID.objects.filter(data_hora__date=dia).count()
-        leituras_7_dias.append({
-            "data": dia.strftime("%d/%m"),
-            "total": count,
-        })
+        leituras_7_dias.append(
+            {
+                "data": dia.strftime("%d/%m"),
+                "total": count,
+            }
+        )
 
     cilindros = list(Botijao.objects.filter(deletado=False))
     requal_vencidas = []
@@ -164,8 +166,7 @@ def dashboard_api(request):
             requal_sem_data.append(c)
 
     requal_proximas_ordenadas = sorted(
-        requal_proximas,
-        key=lambda x: x.data_proxima_requalificacao or hoje
+        requal_proximas, key=lambda x: x.data_proxima_requalificacao or hoje
     )[:10]
 
     proximas_data = [
@@ -173,29 +174,38 @@ def dashboard_api(request):
             "tag_rfid": c.tag_rfid,
             "fabricante": c.fabricante or "-",
             "numero_serie": c.numero_serie or "-",
-            "data_ultima_requalificacao": c.data_ultima_requalificacao.strftime("%d/%m/%Y")
-            if c.data_ultima_requalificacao else "-",
-            "data_proxima_requalificacao": c.data_proxima_requalificacao.strftime("%d/%m/%Y")
-            if c.data_proxima_requalificacao else "-",
+            "data_ultima_requalificacao": (
+                c.data_ultima_requalificacao.strftime("%d/%m/%Y")
+                if c.data_ultima_requalificacao
+                else "-"
+            ),
+            "data_proxima_requalificacao": (
+                c.data_proxima_requalificacao.strftime("%d/%m/%Y")
+                if c.data_proxima_requalificacao
+                else "-"
+            ),
         }
         for c in requal_proximas_ordenadas
     ]
 
-    return JsonResponse({
-        "total_cilindros": total_cilindros,
-        "total_leituras_hoje": total_leituras_hoje,
-        "leituras_7_dias": leituras_7_dias,
-        "qtd_requal_vencidas": len(requal_vencidas),
-        "qtd_requal_proximas": len(requal_proximas),
-        "qtd_requal_em_dia": len(requal_em_dia),
-        "qtd_requal_sem_data": len(requal_sem_data),
-        "requal_proximas": proximas_data,
-    })
+    return JsonResponse(
+        {
+            "total_cilindros": total_cilindros,
+            "total_leituras_hoje": total_leituras_hoje,
+            "leituras_7_dias": leituras_7_dias,
+            "qtd_requal_vencidas": len(requal_vencidas),
+            "qtd_requal_proximas": len(requal_proximas),
+            "qtd_requal_em_dia": len(requal_em_dia),
+            "qtd_requal_sem_data": len(requal_sem_data),
+            "requal_proximas": proximas_data,
+        }
+    )
 
 
 # -----------------------
 # Cadastro / edição de Botijão
 # -----------------------
+
 
 @login_required
 def novo_botijao(request):
@@ -203,7 +213,9 @@ def novo_botijao(request):
         form = BotijaoForm(request.POST)
         if form.is_valid():
             botijao = form.save()
-            messages.success(request, f"Botijão {botijao.tag_rfid} cadastrado com sucesso.")
+            messages.success(
+                request, f"Botijão {botijao.tag_rfid} cadastrado com sucesso."
+            )
             return redirect("dashboard")
     else:
         form = BotijaoForm()
@@ -219,7 +231,9 @@ def editar_botijao(request, botijao_id):
         form = BotijaoForm(request.POST, instance=botijao)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Botijão {botijao.tag_rfid} atualizado com sucesso.")
+            messages.success(
+                request, f"Botijão {botijao.tag_rfid} atualizado com sucesso."
+            )
             return redirect("historico_botijao", botijao_id=botijao.id)
     else:
         form = BotijaoForm(instance=botijao)
@@ -230,6 +244,7 @@ def editar_botijao(request, botijao_id):
 # -----------------------
 # Leitura RFID manual
 # -----------------------
+
 
 @login_required
 def nova_leitura(request):
@@ -281,17 +296,19 @@ def nova_leitura(request):
 
 RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$"
 
+
 @login_required
 def relatorios(request):
     status = request.GET.get("status", "")
     data_inicio = request.GET.get("data_inicio", "")
     data_fim = request.GET.get("data_fim", "")
-    data_tipo = (request.GET.get("data_tipo") or "cadastro").strip()  # "cadastro" | "leitura"
+    data_tipo = (
+        request.GET.get("data_tipo") or "cadastro"
+    ).strip()  # "cadastro" | "leitura"
     tipo = request.GET.get("tipo", "")  # "" | "rfid" | "barcode"
 
-    botijoes = (
-        Botijao.objects.filter(deletado=False)
-        .annotate(num_leituras=Count("leituras"))
+    botijoes = Botijao.objects.filter(deletado=False).annotate(
+        num_leituras=Count("leituras")
     )
 
     # FILTRO POR STATUS
@@ -338,7 +355,6 @@ def relatorios(request):
 
     return render(request, "rfid/relatorios.html", context)
 
-
     # ✅ NOVO: FILTRO POR TIPO (RFID x BARCODE)
     if tipo == "rfid":
         botijoes = botijoes.filter(tag_rfid__regex=RFID_TAG_REGEX)
@@ -359,13 +375,11 @@ def relatorios(request):
         "data_fim": data_fim,
         "data_tipo": data_tipo,
         "status_selected": status,
-
         # ✅ NOVO: pra manter o select marcado no template
         "tipo_selected": tipo,
     }
 
     return render(request, "rfid/relatorios.html", context)
-
 
 
 @login_required
@@ -374,10 +388,7 @@ def relatorios_api(request):
     data_inicio = request.GET.get("data_inicio", "")
     data_fim = request.GET.get("data_fim", "")
 
-    qs = (
-        Botijao.objects.filter(deletado=False)
-        .annotate(num_leituras=Count("leituras"))
-    )
+    qs = Botijao.objects.filter(deletado=False).annotate(num_leituras=Count("leituras"))
 
     if status:
         qs = qs.filter(status=status)
@@ -392,26 +403,25 @@ def relatorios_api(request):
 
     botijoes_data = []
     for b in qs:
-        botijoes_data.append({
-            "tag_rfid": b.tag_rfid,
-            "numero_serie": b.numero_serie or "-",
-            "fabricante": b.fabricante or "-",
-            "status_display": b.get_status_display(),
-            "status_requalificacao_display": b.get_status_requalificacao_display(),
-            "total_leituras": b.num_leituras,
-            "data_cadastro": b.data_cadastro.strftime("%d/%m/%Y %H:%M"),
-        })
+        botijoes_data.append(
+            {
+                "tag_rfid": b.tag_rfid,
+                "numero_serie": b.numero_serie or "-",
+                "fabricante": b.fabricante or "-",
+                "status_display": b.get_status_display(),
+                "status_requalificacao_display": b.get_status_requalificacao_display(),
+                "total_leituras": b.num_leituras,
+                "data_cadastro": b.data_cadastro.strftime("%d/%m/%Y %H:%M"),
+            }
+        )
 
-    return JsonResponse({
-        "botijoes": botijoes_data,
-        "total_filtrado": qs.count()
-    })
-
+    return JsonResponse({"botijoes": botijoes_data, "total_filtrado": qs.count()})
 
 
 # -----------------------
 # Exportar Excel
 # -----------------------
+
 
 @login_required
 def exportar_excel(request):
@@ -446,7 +456,6 @@ def exportar_excel(request):
             if data_fim:
                 qs = qs.filter(data_cadastro__date__lte=data_fim)
 
-
     # tipo (RFID x Barcode)
     if tipo == "rfid":
         qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
@@ -475,7 +484,9 @@ def exportar_excel(request):
     ]
     ws.append(headers)
 
-    header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
+    header_fill = PatternFill(
+        start_color="00D4FF", end_color="00D4FF", fill_type="solid"
+    )
     header_font = Font(bold=True, color="FFFFFF", size=12)
 
     for cell in ws[1]:
@@ -489,20 +500,38 @@ def exportar_excel(request):
         if c.data_proxima_requalificacao:
             dias = (c.data_proxima_requalificacao - hoje).days
 
-        ws.append([
-            c.tag_rfid,
-            c.fabricante or "-",
-            c.numero_serie or "-",
-            float(c.tara) if c.tara is not None else "-",
-            c.data_ultima_requalificacao.strftime("%d/%m/%Y") if c.data_ultima_requalificacao else "-",
-            c.data_proxima_requalificacao.strftime("%d/%m/%Y") if c.data_proxima_requalificacao else "-",
-            dias if dias is not None else "-",
-            status_requal,
-            c.penultima_envasadora or "-",
-            c.data_penultimo_envasamento.strftime("%d/%m/%Y") if c.data_penultimo_envasamento else "-",
-            c.ultima_envasadora or "-",
-            c.data_ultimo_envasamento.strftime("%d/%m/%Y") if c.data_ultimo_envasamento else "-",
-        ])
+        ws.append(
+            [
+                c.tag_rfid,
+                c.fabricante or "-",
+                c.numero_serie or "-",
+                float(c.tara) if c.tara is not None else "-",
+                (
+                    c.data_ultima_requalificacao.strftime("%d/%m/%Y")
+                    if c.data_ultima_requalificacao
+                    else "-"
+                ),
+                (
+                    c.data_proxima_requalificacao.strftime("%d/%m/%Y")
+                    if c.data_proxima_requalificacao
+                    else "-"
+                ),
+                dias if dias is not None else "-",
+                status_requal,
+                c.penultima_envasadora or "-",
+                (
+                    c.data_penultimo_envasamento.strftime("%d/%m/%Y")
+                    if c.data_penultimo_envasamento
+                    else "-"
+                ),
+                c.ultima_envasadora or "-",
+                (
+                    c.data_ultimo_envasamento.strftime("%d/%m/%Y")
+                    if c.data_ultimo_envasamento
+                    else "-"
+                ),
+            ]
+        )
 
     # auto width
     for column in ws.columns:
@@ -524,19 +553,15 @@ def exportar_excel(request):
     return response
 
 
-
 # -----------------------
 # Histórico por botijão
 # -----------------------
 
+
 @login_required
 def historico_botijao(request, botijao_id):
     botijao = get_object_or_404(Botijao, id=botijao_id, deletado=False)
-    leituras = (
-        LeituraRFID.objects
-        .filter(botijao=botijao)
-        .order_by("-data_hora")
-    )
+    leituras = LeituraRFID.objects.filter(botijao=botijao).order_by("-data_hora")
     context = {
         "botijao": botijao,
         "leituras": leituras,
@@ -557,9 +582,11 @@ def buscar_historico(request):
 
     resultados = []
 
-    qs = Botijao.objects.filter(deletado=False).annotate(
-        num_leituras=Count("leituras")
-    ).prefetch_related("leituras")
+    qs = (
+        Botijao.objects.filter(deletado=False)
+        .annotate(num_leituras=Count("leituras"))
+        .prefetch_related("leituras")
+    )
 
     # -------------------------
     # 🔍 Filtros Avançados
@@ -567,9 +594,9 @@ def buscar_historico(request):
 
     if query:
         qs = qs.filter(
-            Q(tag_rfid__icontains=query) |
-            Q(numero_serie__icontains=query) |
-            Q(fabricante__icontains=query)
+            Q(tag_rfid__icontains=query)
+            | Q(numero_serie__icontains=query)
+            | Q(fabricante__icontains=query)
         )
 
     if status:
@@ -605,32 +632,34 @@ def buscar_historico(request):
 
         leituras_data = [
             {
-                "data_hora": l.data_hora.strftime("%d/%m/%Y %H:%M:%S"),
+                "data_hora": l.data_hora,
                 "operador": l.operador or "-",
                 "observacao": l.observacao or "-",
             }
             for l in leituras
         ]
 
-        resultados.append({
-            "botijao": {
-                "id": b.id,
-                "tag_rfid": b.tag_rfid,
-                "numero_serie": b.numero_serie or "-",
-                "fabricante": b.fabricante or "-",
-                "tara": b.tara or "-",
-                "data_ultima_requalificacao": b.data_ultima_requalificacao,
-                "data_proxima_requalificacao": b.data_proxima_requalificacao,
-                "status_requalificacao_display": b.get_status_requalificacao_display(),
-                "penultima_envasadora": b.penultima_envasadora or "-",
-                "data_penultimo_envasamento": b.data_penultimo_envasamento,
-                "ultima_envasadora": b.ultima_envasadora or "-",
-                "data_ultimo_envasamento": b.data_ultimo_envasamento,
-                "status": b.get_status_display(),
-            },
-            "leituras": leituras_data,
-            "total_leituras": b.num_leituras,
-        })
+        resultados.append(
+            {
+                "botijao": {
+                    "id": b.id,
+                    "tag_rfid": b.tag_rfid,
+                    "numero_serie": b.numero_serie or "-",
+                    "fabricante": b.fabricante or "-",
+                    "tara": b.tara or "-",
+                    "data_ultima_requalificacao": b.data_ultima_requalificacao,
+                    "data_proxima_requalificacao": b.data_proxima_requalificacao,
+                    "status_requalificacao_display": b.get_status_requalificacao_display(),
+                    "penultima_envasadora": b.penultima_envasadora or "-",
+                    "data_penultimo_envasamento": b.data_penultimo_envasamento,
+                    "ultima_envasadora": b.ultima_envasadora or "-",
+                    "data_ultimo_envasamento": b.data_ultimo_envasamento,
+                    "status": b.get_status_display(),
+                },
+                "leituras": leituras_data,
+                "total_leituras": b.num_leituras,
+            }
+        )
 
     context = {
         "query": query,
@@ -647,15 +676,26 @@ def buscar_historico(request):
 # Enviar relatório por e-mail
 # -----------------------
 
+
 @login_required
 def enviar_email_view(request):
     # ✅ Captura filtros (GET quando vem de Relatórios, POST quando envia o form)
-    data_tipo = (request.POST.get("data_tipo") or request.GET.get("data_tipo")or "cadastro").strip()
+    data_tipo = (
+        request.POST.get("data_tipo") or request.GET.get("data_tipo") or "cadastro"
+    ).strip()
 
-    tipo = (request.POST.get("tipo") or request.GET.get("tipo") or "").strip()       # "", "rfid", "barcode"
-    status_filtro = (request.POST.get("status") or request.GET.get("status") or "").strip()
-    data_inicio = (request.POST.get("data_inicio") or request.GET.get("data_inicio") or "").strip()
-    data_fim = (request.POST.get("data_fim") or request.GET.get("data_fim") or "").strip()
+    tipo = (
+        request.POST.get("tipo") or request.GET.get("tipo") or ""
+    ).strip()  # "", "rfid", "barcode"
+    status_filtro = (
+        request.POST.get("status") or request.GET.get("status") or ""
+    ).strip()
+    data_inicio = (
+        request.POST.get("data_inicio") or request.GET.get("data_inicio") or ""
+    ).strip()
+    data_fim = (
+        request.POST.get("data_fim") or request.GET.get("data_fim") or ""
+    ).strip()
 
     # ✅ Resumo humano dos filtros (para mostrar no template e também no corpo do e-mail)
     if tipo == "rfid":
@@ -672,7 +712,9 @@ def enviar_email_view(request):
     else:
         periodo_label = "Todos"
 
-    data_tipo_label = "Data da Leitura" if data_tipo == "leitura" else "Data de Cadastro"
+    data_tipo_label = (
+        "Data da Leitura" if data_tipo == "leitura" else "Data de Cadastro"
+    )
 
     filtro_resumo = (
         f"Tipo: {tipo_label} | "
@@ -717,7 +759,9 @@ def enviar_email_view(request):
         hoje = timezone.now().date()
 
         # ✅ Base queryset (igual exportar_excel)
-        qs = Botijao.objects.filter(deletado=False).annotate(num_leituras=Count("leituras"))
+        qs = Botijao.objects.filter(deletado=False).annotate(
+            num_leituras=Count("leituras")
+        )
 
         # filtro status
         if status_filtro:
@@ -737,7 +781,6 @@ def enviar_email_view(request):
                 if data_fim:
                     qs = qs.filter(data_cadastro__date__lte=data_fim)
 
-
         # filtro tipo (rfid x barcode)
         if tipo == "rfid":
             qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
@@ -752,13 +795,21 @@ def enviar_email_view(request):
         wb = Workbook()
         ws = wb.active
 
-        header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
+        header_fill = PatternFill(
+            start_color="00D4FF", end_color="00D4FF", fill_type="solid"
+        )
         header_font = Font(bold=True, color="FFFFFF", size=12)
 
         # ✅ Se tipo=barcode: gera planilha enxuta "de outra forma"
         if tipo == "barcode":
             ws.title = "Códigos de Barras"
-            headers = ["Código de Barras", "Status", "Total Leituras", "Data Cadastro", "Observação"]
+            headers = [
+                "Código de Barras",
+                "Status",
+                "Total Leituras",
+                "Data Cadastro",
+                "Observação",
+            ]
             ws.append(headers)
 
             for cell in ws[1]:
@@ -767,15 +818,25 @@ def enviar_email_view(request):
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
             for b in qs:
-                ws.append([
-                    b.tag_rfid,
-                    b.get_status_display(),
-                    b.num_leituras,
-                    b.data_cadastro.strftime("%d/%m/%Y %H:%M") if b.data_cadastro else "-",
-                    getattr(b, "observacao", None) or getattr(b, "observacao_interna", None) or "-",
-                ])
+                ws.append(
+                    [
+                        b.tag_rfid,
+                        b.get_status_display(),
+                        b.num_leituras,
+                        (
+                            b.data_cadastro.strftime("%d/%m/%Y %H:%M")
+                            if b.data_cadastro
+                            else "-"
+                        ),
+                        getattr(b, "observacao", None)
+                        or getattr(b, "observacao_interna", None)
+                        or "-",
+                    ]
+                )
 
-            filename = f"relatorio_barcode_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            filename = (
+                f"relatorio_barcode_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            )
 
         else:
             # RFID ou TODOS: mesma estrutura do seu exportar_excel atual
@@ -808,22 +869,42 @@ def enviar_email_view(request):
                 if c.data_proxima_requalificacao:
                     dias = (c.data_proxima_requalificacao - hoje).days
 
-                ws.append([
-                    c.tag_rfid,
-                    c.fabricante or "-",
-                    c.numero_serie or "-",
-                    float(c.tara) if c.tara is not None else "-",
-                    c.data_ultima_requalificacao.strftime("%d/%m/%Y") if c.data_ultima_requalificacao else "-",
-                    c.data_proxima_requalificacao.strftime("%d/%m/%Y") if c.data_proxima_requalificacao else "-",
-                    dias if dias is not None else "-",
-                    status_requal,
-                    c.penultima_envasadora or "-",
-                    c.data_penultimo_envasamento.strftime("%d/%m/%Y") if c.data_penultimo_envasamento else "-",
-                    c.ultima_envasadora or "-",
-                    c.data_ultimo_envasamento.strftime("%d/%m/%Y") if c.data_ultimo_envasamento else "-",
-                ])
+                ws.append(
+                    [
+                        c.tag_rfid,
+                        c.fabricante or "-",
+                        c.numero_serie or "-",
+                        float(c.tara) if c.tara is not None else "-",
+                        (
+                            c.data_ultima_requalificacao.strftime("%d/%m/%Y")
+                            if c.data_ultima_requalificacao
+                            else "-"
+                        ),
+                        (
+                            c.data_proxima_requalificacao.strftime("%d/%m/%Y")
+                            if c.data_proxima_requalificacao
+                            else "-"
+                        ),
+                        dias if dias is not None else "-",
+                        status_requal,
+                        c.penultima_envasadora or "-",
+                        (
+                            c.data_penultimo_envasamento.strftime("%d/%m/%Y")
+                            if c.data_penultimo_envasamento
+                            else "-"
+                        ),
+                        c.ultima_envasadora or "-",
+                        (
+                            c.data_ultimo_envasamento.strftime("%d/%m/%Y")
+                            if c.data_ultimo_envasamento
+                            else "-"
+                        ),
+                    ]
+                )
 
-            filename = f"relatorio_cilindros_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            filename = (
+                f"relatorio_cilindros_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            )
 
         # auto width
         for column in ws.columns:
@@ -886,32 +967,14 @@ def enviar_email_view(request):
 
         messages.success(request, f"Relatório enviado para {destinatario}.")
         return redirect("relatorios")
-    
 
     except Exception as e:
-        logger.exception("Erro ao enviar email")  # ✅ isso imprime traceback completo no console
+        logger.exception(
+            "Erro ao enviar email"
+        )  # ✅ isso imprime traceback completo no console
         messages.error(request, f"Erro ao enviar email: {str(e)}")
         return render_pagina(destinatario_value=destinatario)
 
-
-# -----------------------
-# Criar admin temporário (Railway)
-# -----------------------
-
-# def criar_admin_temp(request):
-#     try:
-#         if not User.objects.filter(username="rfidadmin").exists():
-#             User.objects.create_superuser(
-#                 username="rfidadmin",
-#                 email="admin@rfidflow.com",
-#                 password="RFID@Admin2024!",
-#             )
-#             return HttpResponse(
-#                 "Superusuário criado. Username: rfidadmin | Senha: RFID@Admin2024!"
-#             )
-#         return HttpResponse("Superusuário já existe.")
-#     except Exception as e:
-#         return HttpResponse(f"Erro: {str(e)}")
 
 
 # Aliases para URLs antigas
@@ -922,7 +985,78 @@ enviar_relatorio_view = enviar_email_view
 # -----------------------
 # API para registrar leitura RFID
 # -----------------------
+@extend_schema(
+    tags=["RFID"],
+    summary="Registrar leitura RFID",
+    description=(
+        "Recebe uma leitura RFID enviada pelo coletor (ex.: PDA_C72) e registra no sistema. "
+        "Se o botijão ainda não existir, ele é criado automaticamente."
+    ),
+    auth=[],
+    request=inline_serializer(
+        name="RFIDLeituraRequest",
+        fields={
+            "tag_rfid": serializers.CharField(
+                help_text="EPC/Tag RFID lida pelo coletor",
+                default="E2000017221101441890ABCD",
+            ),
+            "operador": serializers.CharField(
+                required=False,
+                help_text="Identificação do operador/dispositivo",
+                default="PDA_C72",
+            ),
+            "observacao": serializers.CharField(
+                required=False,
+                help_text="Observação livre",
+                default="Leitura Mobile",
+            ),
+        },
+    ),
+    responses={
+        200: inline_serializer(
+            name="RFIDLeituraResponseOK",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+                "id_leitura": serializers.IntegerField(),
+            },
+        ),
+        400: inline_serializer(
+            name="RFIDLeituraResponseBadRequest",
+            fields={
+                "success": serializers.BooleanField(),
+                "error": serializers.CharField(),
+            },
+        ),
+        405: inline_serializer(
+            name="RFIDLeituraResponseMethodNotAllowed",
+            fields={
+                "success": serializers.BooleanField(),
+                "error": serializers.CharField(),
+            },
+        ),
+        500: inline_serializer(
+            name="RFIDLeituraResponseServerError",
+            fields={
+                "success": serializers.BooleanField(),
+                "error": serializers.CharField(),
+            },
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "Exemplo RFID (sucesso)",
+            value={
+                "tag_rfid": "E2000017221101441890ABCD",
+                "operador": "PDA_C72",
+                "observacao": "Leitura Mobile",
+            },
+            request_only=True,
+        ),
+    ],
+)
 
+@api_view(["POST"])
 @csrf_exempt  # <--- Isso permite que o Android envie dados sem token de navegador
 def api_registrar_leitura(request):
     if request.method != "POST":
@@ -931,14 +1065,16 @@ def api_registrar_leitura(request):
     try:
         # 1. Ler o JSON que vem do Android
         data = json.loads(request.body)
-        
+
         # 2. Pegar os dados usando os nomes exatos
         tag_rfid = data.get("tag_rfid", "").strip()
-        operador = data.get("operador", "PDA_C72").strip() # Valor padrão se vier vazio
+        operador = data.get("operador", "PDA_C72").strip()  # Valor padrão se vier vazio
         observacao = data.get("observacao", "Leitura Mobile").strip()
 
         if not tag_rfid:
-            return JsonResponse({"success": False, "error": "Tag RFID faltando"}, status=400)
+            return JsonResponse(
+                {"success": False, "error": "Tag RFID faltando"}, status=400
+            )
 
         # 3. Lógica do Botijão (Mantida igual a sua)
         botijao, criado = Botijao.objects.get_or_create(tag_rfid=tag_rfid)
@@ -954,7 +1090,7 @@ def api_registrar_leitura(request):
             LogAuditoria.criar_log(
                 botijao=botijao,
                 acao="leitura",
-                usuario=None, # Android sem login envia como None ou Sistema
+                usuario=None,  # Android sem login envia como None ou Sistema
                 descricao=f"Leitura API. Op: {operador}",
                 dados_anteriores=None,
                 dados_novos={"leitura_id": leitura.id},
@@ -962,12 +1098,9 @@ def api_registrar_leitura(request):
         except Exception:
             pass
 
-        return JsonResponse({
-            "success": True, 
-            "message": "Sucesso",
-            "id_leitura": leitura.id
-        })
+        return JsonResponse(
+            {"success": True, "message": "Sucesso", "id_leitura": leitura.id}
+        )
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
-    

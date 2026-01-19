@@ -176,7 +176,7 @@ body {
 
                 <thead>
                     <tr>
-                        <th>Última Leitura</th>
+                        {% comment %} <th>Última Leitura</th> {% endcomment %}
                         <th>Tag RFID</th>
                         <th>Nº Série</th>
                         <th>Tara</th>
@@ -194,11 +194,11 @@ body {
                 <tbody>
                     {% for b in botijoes %}
                     <tr>
-                        <td>
+                        {% comment %} <td>
                             {% if b.ultima_leitura %}
                                 {{ b.ultima_leitura|date:"d/m/Y H:i" }}
                             {% else %} - {% endif %}
-                        </td>
+                        </td> {% endcomment %}
 
                         <!-- ✅ AQUI É A ÚNICA MUDANÇA FUNCIONAL: TAG VIRA LINK PARA O HISTÓRICO -->
                         <td>

@@ -1,8 +1,9 @@
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from django.utils import timezone
-from django.conf import settings
 import os
+
+import openpyxl
+from django.conf import settings
+from django.utils import timezone
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 # ✅ Mesmo padrão que você usou no dashboard: EPC RFID em HEX longo
 RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$"
@@ -41,7 +42,9 @@ def _aplicar_filtro_tipo(qs, tipo, field_name):
     return qs
 
 
-def gerar_excel_botijoes(filepath=None, status=None, data_inicio=None, data_fim=None, tipo=None):
+def gerar_excel_botijoes(
+    filepath=None, status=None, data_inicio=None, data_fim=None, tipo=None
+):
     """
     Gera planilha Excel com botijões.
 
@@ -68,7 +71,9 @@ def gerar_excel_botijoes(filepath=None, status=None, data_inicio=None, data_fim=
     ws.title = "Botijões"
 
     # Estilos
-    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_fill = PatternFill(
+        start_color="4472C4", end_color="4472C4", fill_type="solid"
+    )
     header_font = Font(bold=True, color="FFFFFF", size=11)
     border = Border(
         left=Side(style="thin"),
@@ -129,12 +134,16 @@ def gerar_excel_botijoes(filepath=None, status=None, data_inicio=None, data_fim=
         ws.cell(row, 6, botijao.leituras.count()).border = border
 
         if botijao.data_cadastro:
-            ws.cell(row, 7, botijao.data_cadastro.strftime("%d/%m/%Y %H:%M")).border = border
+            ws.cell(row, 7, botijao.data_cadastro.strftime("%d/%m/%Y %H:%M")).border = (
+                border
+            )
         else:
             ws.cell(row, 7, "-").border = border
 
         if botijao.ultima_leitura:
-            ws.cell(row, 8, botijao.ultima_leitura.strftime("%d/%m/%Y %H:%M")).border = border
+            ws.cell(
+                row, 8, botijao.ultima_leitura.strftime("%d/%m/%Y %H:%M")
+            ).border = border
         else:
             ws.cell(row, 8, "-").border = border
 
@@ -178,7 +187,9 @@ def gerar_excel_leituras(data_inicio=None, data_fim=None, filepath=None, tipo=No
     ws.title = "Leituras"
 
     # Estilos
-    header_fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+    header_fill = PatternFill(
+        start_color="70AD47", end_color="70AD47", fill_type="solid"
+    )
     header_font = Font(bold=True, color="FFFFFF", size=11)
     border = Border(
         left=Side(style="thin"),
@@ -188,7 +199,15 @@ def gerar_excel_leituras(data_inicio=None, data_fim=None, filepath=None, tipo=No
     )
 
     # Cabeçalhos (mantidos)
-    headers = ["Data/Hora", "Tag RFID", "Nº Série", "Cliente", "Operador", "Localização", "Observação"]
+    headers = [
+        "Data/Hora",
+        "Tag RFID",
+        "Nº Série",
+        "Cliente",
+        "Operador",
+        "Localização",
+        "Observação",
+    ]
 
     for col, header in enumerate(headers, 1):
         cell = ws.cell(1, col, header)
@@ -215,12 +234,20 @@ def gerar_excel_leituras(data_inicio=None, data_fim=None, filepath=None, tipo=No
         ws.cell(
             row,
             3,
-            leitura.botijao.numero_serie if leitura.botijao and leitura.botijao.numero_serie else "-",
+            (
+                leitura.botijao.numero_serie
+                if leitura.botijao and leitura.botijao.numero_serie
+                else "-"
+            ),
         ).border = border
         ws.cell(
             row,
             4,
-            leitura.botijao.cliente if leitura.botijao and leitura.botijao.cliente else "-",
+            (
+                leitura.botijao.cliente
+                if leitura.botijao and leitura.botijao.cliente
+                else "-"
+            ),
         ).border = border
         ws.cell(row, 5, leitura.operador or "-").border = border
         ws.cell(row, 6, leitura.localizacao or "-").border = border
