@@ -51,3 +51,8 @@ env/
 node_modules/
 dist/
 build/
+
+# MkDocs build output
+site/
+
+
