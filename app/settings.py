@@ -4,6 +4,8 @@ from pathlib import Path
 import dj_database_url
 from decouple import config
 
+import logging
+
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -142,6 +144,7 @@ DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
     default="rfidflow.app@gmail.com"
 )
+from_email="rfidflow.app@gmail.com"
 
 # Opcional, mas ajuda a depurar
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
@@ -163,3 +166,24 @@ LOGOUT_REDIRECT_URL = "login"
 #     SECURE_HSTS_SECONDS = 31536000
 #     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 #     SECURE_HSTS_PRELOAD = True
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "rfid": {  # nome do app
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}

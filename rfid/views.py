@@ -1,6 +1,7 @@
 # rfid/views.py
 import json  # <--- Necessário para ler o corpo da requisição
 import logging
+from rfid.utils.send_email import enviar_relatorio_email
 
 from rest_framework.decorators import api_view
 from rest_framework import serializers
@@ -22,9 +23,10 @@ from django.db.models import Count, Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.conf import settings
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("rfid")
 
 # -----------------------
 # Helpers de requalificação
@@ -951,10 +953,23 @@ def enviar_email_view(request):
         </html>
         """
 
+        raw_from = (getattr(settings, "DEFAULT_FROM_EMAIL", "") or "").strip()
+        safe_from = raw_from
+        if "<" in safe_from and ">" in safe_from:
+            safe_from = safe_from.split("<", 1)[1].split(">", 1)[0].strip()
+
+        logger.warning(
+            "EMAIL SEND ATTEMPT | raw_from=%r | safe_from=%r | to=%r | filename=%r",
+            raw_from,
+            safe_from,
+            destinatario,
+            filename,
+        )
+
         email = EmailMessage(
             subject=f"Relatório RFID Flow - {data_hora_str}",
             body=corpo_html,
-            from_email="RFID Flow <noreply@rfidflow.com>",
+            from_email=safe_from,   # ✅ agora é o sender do settings/env (verificado)
             to=[destinatario],
         )
         email.content_subtype = "html"
@@ -964,6 +979,7 @@ def enviar_email_view(request):
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         email.send(fail_silently=False)
+
 
         messages.success(request, f"Relatório enviado para {destinatario}.")
         return redirect("relatorios")
