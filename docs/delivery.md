@@ -134,3 +134,6 @@ Marcar como **OK** quando validado em produção.
 - **Versão entregue:** V1 – Prova de Conceito (MVP)
 - **Data de entrega:** `<DD/MM/AAAA>`
 - **Ambiente:** Produção (Railway)
+
+---
+Documento referente à versão **v1.0 (MVP)** do RFID Flow.
