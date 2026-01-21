@@ -17,6 +17,7 @@ plugins:
   - mermaid2
 
 nav:
+  - Capa: capa.md
   - Início: index.md
   - Arquitetura: architecture.md
   - Deploy: deployment.md
