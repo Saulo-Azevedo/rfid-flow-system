@@ -176,7 +176,7 @@ body {
 
                 <thead>
                     <tr>
-                        {% comment %} <th>Última Leitura</th> {% endcomment %}
+                        <th>Última Leitura</th>
                         <th>Tag RFID</th>
                         <th>Nº Série</th>
                         <th>Tara</th>
@@ -194,11 +194,11 @@ body {
                 <tbody>
                     {% for b in botijoes %}
                     <tr>
-                        {% comment %} <td>
+                        <td>
                             {% if b.ultima_leitura %}
                                 {{ b.ultima_leitura|date:"d/m/Y H:i" }}
                             {% else %} - {% endif %}
-                        </td> {% endcomment %}
+                        </td> 
 
                         <!-- ✅ AQUI É A ÚNICA MUDANÇA FUNCIONAL: TAG VIRA LINK PARA O HISTÓRICO -->
                         <td>
@@ -212,8 +212,9 @@ body {
                         <td>{{ b.tara|default:"-" }}</td>
                         <td>{{ b.fabricante|default:"-" }}</td>
 
-                        <td>{{ b.ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
-                        <td>{{ b.proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                        <td>{{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                        <td>{{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+
 
                         <td>{{ b.penultima_envasadora|default:"-" }}</td>
                         <td>{{ b.data_penultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>

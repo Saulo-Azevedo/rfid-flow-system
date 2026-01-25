@@ -1,6 +1,6 @@
-# rfid/models.py – MODELO FINAL AJUSTADO
+# rfid/models.py – MODELO FINAL AJUSTADO (com ciclo de Envasadoras + Log de Auditoria)
 from django.contrib.auth.models import User
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 
@@ -81,6 +81,15 @@ class Botijao(models.Model):
         blank=True, null=True, verbose_name="Data do Último Envasamento"
     )
 
+    # -------- CONTROLE DO CICLO DE DISTRIBUIDORAS (0..3) --------
+    # NULL = ainda não iniciou o ciclo (primeira leitura começa em Distribuidora 1)
+    indice_distribuidora = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Índice Distribuidora (0-3)",
+        help_text="Controle interno do ciclo de distribuidoras (0..3). NULL = não iniciado.",
+    )
+
     data_cadastro = models.DateTimeField(
         auto_now_add=True, verbose_name="Data de Cadastro"
     )
@@ -148,6 +157,123 @@ class Botijao(models.Model):
         self.motivo_delecao = ""
         self.save()
 
+    @staticmethod
+    def _nome_distribuidora(idx: int) -> str:
+        """
+        idx: 0..3 -> "Distribuidora 1".."Distribuidora 4"
+        """
+        return f"Distribuidora {idx + 1}"
+
+    @classmethod
+    def avancar_envasadora_por_leitura(cls, botijao_id: int) -> None:
+        """
+        Atualiza (penúltima/última) envasadora e datas, avançando em ciclo (1..4),
+        com lock para evitar corrida quando chegam leituras simultâneas.
+
+        Gera LogAuditoria (acao="leitura") registrando antes/depois.
+
+        - NULL (não iniciado) => primeira leitura: ultima=Distribuidora 1, penultima permanece vazia
+        - leituras seguintes: shift e avanço do ciclo
+        """
+        hoje = timezone.now().date()
+
+        with transaction.atomic():
+            botijao = (
+                cls.all_objects.select_for_update()
+                .only(
+                    "id",
+                    "tag_rfid",
+                    "indice_distribuidora",
+                    "ultima_envasadora",
+                    "penultima_envasadora",
+                    "data_ultimo_envasamento",
+                    "data_penultimo_envasamento",
+                )
+                .get(pk=botijao_id)
+            )
+
+            # Snapshot "antes" para auditoria
+            antes = {
+                "indice_distribuidora": botijao.indice_distribuidora,
+                "ultima_envasadora": botijao.ultima_envasadora,
+                "penultima_envasadora": botijao.penultima_envasadora,
+                "data_ultimo_envasamento": (
+                    botijao.data_ultimo_envasamento.isoformat()
+                    if botijao.data_ultimo_envasamento
+                    else None
+                ),
+                "data_penultimo_envasamento": (
+                    botijao.data_penultimo_envasamento.isoformat()
+                    if botijao.data_penultimo_envasamento
+                    else None
+                ),
+            }
+
+            # Determina próximo índice (0..3) e aplica regras
+            if botijao.indice_distribuidora is None:
+                proximo_idx = 0  # primeira leitura => Distribuidora 1
+                # Primeira leitura: NÃO move ultima->penultima (porque ultima pode estar vazia/legada)
+                botijao.ultima_envasadora = cls._nome_distribuidora(proximo_idx)
+                botijao.data_ultimo_envasamento = hoje
+            else:
+                proximo_idx = (botijao.indice_distribuidora + 1) % 4
+
+                # Shift: última -> penúltima (e datas)
+                botijao.penultima_envasadora = botijao.ultima_envasadora
+                botijao.data_penultimo_envasamento = botijao.data_ultimo_envasamento
+
+                # Nova última
+                botijao.ultima_envasadora = cls._nome_distribuidora(proximo_idx)
+                botijao.data_ultimo_envasamento = hoje
+
+            botijao.indice_distribuidora = proximo_idx
+
+            botijao.save(
+                update_fields=[
+                    "indice_distribuidora",
+                    "ultima_envasadora",
+                    "penultima_envasadora",
+                    "data_ultimo_envasamento",
+                    "data_penultimo_envasamento",
+                ]
+            )
+
+            # Snapshot "depois" para auditoria
+            depois = {
+                "indice_distribuidora": botijao.indice_distribuidora,
+                "ultima_envasadora": botijao.ultima_envasadora,
+                "penultima_envasadora": botijao.penultima_envasadora,
+                "data_ultimo_envasamento": (
+                    botijao.data_ultimo_envasamento.isoformat()
+                    if botijao.data_ultimo_envasamento
+                    else None
+                ),
+                "data_penultimo_envasamento": (
+                    botijao.data_penultimo_envasamento.isoformat()
+                    if botijao.data_penultimo_envasamento
+                    else None
+                ),
+            }
+
+            # Descrição auditável
+            desc = (
+                "Envasadora atualizada automaticamente por leitura RFID. "
+                f"Última: {depois['ultima_envasadora'] or '-'} "
+                f"(antes: {antes['ultima_envasadora'] or '-'}) | "
+                f"Penúltima: {depois['penultima_envasadora'] or '-'} "
+                f"(antes: {antes['penultima_envasadora'] or '-'})"
+            )
+
+            # Cria log (usuario=None por padrão: evento automático)
+            LogAuditoria.criar_log(
+                botijao=botijao,
+                acao="leitura",
+                usuario=None,
+                descricao=desc,
+                dados_anteriores=antes,
+                dados_novos=depois,
+            )
+
 
 # ============================================================
 # LEITURA RFID
@@ -175,9 +301,15 @@ class LeituraRFID(models.Model):
     def save(self, *args, **kwargs):
         novo = self.pk is None
         super().save(*args, **kwargs)
+
         if novo:
-            self.botijao.total_leituras += 1
-            self.botijao.save(update_fields=["total_leituras"])
+            # Incrementa contador (como já fazia) — update atômico
+            Botijao.all_objects.filter(pk=self.botijao_id).update(
+                total_leituras=models.F("total_leituras") + 1
+            )
+
+            # Avança ciclo de envasadoras + gera log de auditoria
+            Botijao.avancar_envasadora_por_leitura(self.botijao_id)
 
 
 # ============================================================
@@ -226,6 +358,9 @@ class LogAuditoria(models.Model):
         )
 
 
+# ============================================================
+# IMPORTAÇÃO XLS
+# ============================================================
 class ImportacaoXLS(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     arquivo_nome = models.CharField(max_length=300)
@@ -242,9 +377,9 @@ class ImportacaoXLS(models.Model):
         ordering = ["-data_hora"]
 
 
-# rfid/models.py
-
-
+# ============================================================
+# LEITURA CÓDIGO DE BARRAS
+# ============================================================
 class LeituraCodigoBarra(models.Model):
     codigo = models.CharField(max_length=200)
     origem = models.CharField(
