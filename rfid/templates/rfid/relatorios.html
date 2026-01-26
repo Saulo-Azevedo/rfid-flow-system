@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
-
+{% load tz %}
+{% load dict_extras %}
 {% block content %}
 
 <style>
@@ -46,7 +47,6 @@
     gap: 6px;
 }
 
-
 .btn-back {
     border: 2px solid #00D4FF;
     color: #00D4FF;
@@ -58,90 +58,126 @@
 <div class="container">
 
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-info btn-back-fixed">
-        <i class="bi bi-arrow-left me-2"></i> Voltar
-    </a>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-info btn-back-fixed">
+            <i class="bi bi-arrow-left me-2"></i> Voltar
+        </a>
 
-    <h2 class="text-white m-0 fw-bold">Relatórios</h2>
+        <h2 class="text-white m-0 fw-bold">Relatórios</h2>
 
-    <!-- “placeholder” invisível pra manter o título alinhado quando quebrar linha -->
-    <div class="d-none d-md-block" style="width: 110px;"></div>
+        <div class="d-none d-md-block" style="width: 110px;"></div>
     </div>
-
 
     <!-- FILTROS -->
     <div class="card-rfid mb-4">
-    <form method="GET" class="row g-3 text-white align-items-end">
+        <form method="GET" class="row g-3 text-white align-items-end">
 
-        <div class="col-lg-4 col-md-6">
-        <label class="form-label">Tipo</label>
-        <select name="tipo" class="form-select bg-dark text-white border-secondary">
-            <option value="" {% if not tipo_selected %}selected{% endif %}>Todos</option>
-            <option value="rfid" {% if tipo_selected == "rfid" %}selected{% endif %}>Somente RFID</option>
-            <option value="barcode" {% if tipo_selected == "barcode" %}selected{% endif %}>Somente Código de Barras</option>
-        </select>
-        </div>
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">Tipo</label>
+                <select name="tipo" class="form-select bg-dark text-white border-secondary">
+                    <option value="" {% if not tipo_selected %}selected{% endif %}>Todos</option>
+                    <option value="rfid" {% if tipo_selected == "rfid" %}selected{% endif %}>Somente RFID</option>
+                    <option value="barcode" {% if tipo_selected == "barcode" %}selected{% endif %}>Somente Código de Barras</option>
+                    <option value="qr" {% if tipo_selected == "qr" %}selected{% endif %}>Somente Código QR</option>
+                </select>
+            </div>
 
-        <div class="col-lg-4 col-md-6">
-        <label class="form-label">Status</label>
-        <select name="status" class="form-select bg-dark text-white border-secondary">
-            <option value="" {% if not status_selected %}selected{% endif %}>Todos</option>
-            {% for value,label in status_choices %}
-            <option value="{{ value }}" {% if value == status_selected %}selected{% endif %}>
-                {{ label }}
-            </option>
-            {% endfor %}
-        </select>
-        </div>
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select bg-dark text-white border-secondary">
+                    <option value="" {% if not status_selected %}selected{% endif %}>Todos</option>
+                    {% for value,label in status_choices %}
+                        <option value="{{ value }}" {% if value == status_selected %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-        <div class="col-lg-4 col-md-12">
-        <label class="form-label">Data usada no filtro</label>
-        <select name="data_tipo" class="form-select bg-dark text-white border-secondary">
-            <option value="cadastro" {% if data_tipo == "cadastro" %}selected{% endif %}>Data de Cadastro</option>
-            <option value="leitura" {% if data_tipo == "leitura" %}selected{% endif %}>Data da Leitura</option>
-        </select>
-        </div>
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">Modo</label>
+                <select name="modo" class="form-select bg-dark text-white border-secondary">
+                    <option value="consolidado" {% if modo == "consolidado" or not modo %}selected{% endif %}>
+                        Consolidado (por botijão)
+                    </option>
+                    <option value="detalhado" {% if modo == "detalhado" %}selected{% endif %}>
+                        Detalhado (por leitura)
+                    </option>
+                </select>
+            </div>
 
-        <div class="col-12">
-        <hr class="border-secondary my-2">
-        </div>
+            <div class="col-12">
+                <hr class="border-secondary my-2">
+            </div>
 
-        <div class="col-lg-4 col-md-6">
-        <label class="form-label">Data início</label>
-        <input type="date" name="data_inicio" value="{{ data_inicio }}"
-                class="form-control bg-dark text-white border-secondary">
-        </div>
+            <div class="col-lg-4 col-md-12">
+                <label class="form-label">Data usada no filtro</label>
+                <select name="data_tipo" class="form-select bg-dark text-white border-secondary">
+                    <option value="cadastro" {% if data_tipo == "cadastro" %}selected{% endif %}>Data de Cadastro</option>
+                    <option value="leitura" {% if data_tipo == "leitura" %}selected{% endif %}>Data da Leitura</option>
+                </select>
+            </div>
 
-        <div class="col-lg-4 col-md-6">
-        <label class="form-label">Data fim</label>
-        <input type="date" name="data_fim" value="{{ data_fim }}"
-                class="form-control bg-dark text-white border-secondary">
-        </div>
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">Data início</label>
+                <input type="date" name="data_inicio" value="{{ data_inicio }}"
+                       class="form-control bg-dark text-white border-secondary">
+            </div>
 
-        <div class="col-lg-4 col-md-12">
-        <button class="btn btn-info w-100">
-            <i class="bi bi-funnel"></i> Filtrar
-        </button>
-        </div>
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">Data fim</label>
+                <input type="date" name="data_fim" value="{{ data_fim }}"
+                       class="form-control bg-dark text-white border-secondary">
+            </div>
 
-    </form>
+            <div class="col-lg-4 col-md-12">
+                <button class="btn btn-info w-100">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+            </div>
+
+        </form>
     </div>
 
-
     <!-- RESUMO -->
-    <h5 class="text-white mb-2">Botijões encontrados: {{ total_filtrado }}</h5>
+    <h5 class="text-white mb-2">
+        {% if modo == "detalhado" %}
+            {% if detalhe_kind == "barcode_qr" %}
+                Leituras encontradas: {{ total_filtrado }}
+            {% else %}
+                Eventos encontrados: {{ total_filtrado }}
+            {% endif %}
+        {% else %}
+            Botijões encontrados: {{ total_filtrado }}
+        {% endif %}
+    </h5>
 
     <div class="row g-3 mb-4">
         <div class="col-md-4">
             <div class="stat-card">
                 <div class="stat-value">{{ total_filtrado }}</div>
-                <div class="stat-label">Botijões filtrados</div>
+                <div class="stat-label">
+                    {% if modo == "detalhado" %}
+                        {% if detalhe_kind == "barcode_qr" %}Leituras filtradas{% else %}Eventos filtrados{% endif %}
+                    {% else %}
+                        Botijões filtrados
+                    {% endif %}
+                </div>
             </div>
         </div>
 
         <div class="col-md-4">
             <div class="stat-card">
-                <div class="stat-value">{{ botijoes|length }}</div>
+                <div class="stat-value">
+                    {% if modo == "detalhado" %}
+                        {% if detalhe_kind == "barcode_qr" %}
+                            {{ leituras_barcode|length }}
+                        {% else %}
+                            {{ eventos|length }}
+                        {% endif %}
+                    {% else %}
+                        {{ botijoes|length }}
+                    {% endif %}
+                </div>
                 <div class="stat-label">Registros analisados</div>
             </div>
         </div>
@@ -160,27 +196,47 @@
         <div class="d-flex align-items-center mb-3">
             <h4 class="text-white mb-0">Resultados</h4>
 
-            <!-- AÇÕES À DIREITA -->
             <div class="ms-auto d-flex gap-2">
                 <a href="{% url 'exportar_excel' %}?{{ request.GET.urlencode }}"
-                class="btn btn-success btn-sm">
+                   class="btn btn-success btn-sm">
                     <i class="bi bi-file-earmark-spreadsheet-fill"></i> Exportar Excel
                 </a>
 
                 <a href="{% url 'enviar_email' %}?{{ request.GET.urlencode }}"
-                class="btn btn-primary btn-sm">
+                   class="btn btn-primary btn-sm">
                     <i class="bi bi-envelope-fill"></i> Enviar Relatório
                 </a>
             </div>
         </div>
 
-        <!-- 🔥 SOMENTE A TABELA ALTERADA -->
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                 <tr>
                     <th>Última Leitura</th>
+
+                    {# ✅ header dinâmico no DETALHADO e CONSOLIDADO #}
+                    {% comment %} {% if modo == "detalhado" and detalhe_kind == "barcode_qr" %}
+                        <th>Código (QR/Barcode)</th>
+                    {% elif modo != "detalhado" and tipo_selected in "qr,barcode" %}
+                        <th>Código (QR/Barcode)</th>                    
+                    {% elif modo == "consolidado" and tipo_selected == "rfid" %}
+                        <th>Tag RFID</th>    
+                    {% else %}
+                        <th>Tag RFID</th>
+                    {% endif %} {% endcomment %}
+
+                    {% with t=tipo_selected|default:""|lower %}
+                    {% if t == "rfid" %}
                     <th>Tag RFID</th>
+                    {% elif t == "qr" or t == "barcode" %}
+                    <th>Código (QR/Barcode)</th>
+                    {% else %}
+                    <th>Código</th>
+                    {% endif %}
+                    {% endwith %}
+
+
                     <th>Nº Série</th>
                     <th>Fabricante</th>
                     <th>Tara</th>
@@ -190,6 +246,11 @@
                     <th>Data Penúltimo Env.</th>
                     <th>Últ. Envasadora</th>
                     <th>Data Último Env.</th>
+
+                    {% if modo == "detalhado" and detalhe_kind != "barcode_qr" %}
+                        <th>Troca Distribuidora</th>
+                    {% endif %}
+
                     <th>Status</th>
                     <th>Status Requalificação</th>
                     <th>Total Leituras</th>
@@ -198,39 +259,127 @@
                 </thead>
 
                 <tbody>
-                {% for b in botijoes %}
-                    <tr>
-                        <td>
-                            {% if b.ultima_leitura %}
-                                {{ b.ultima_leitura|date:"d/m/Y H:i" }}
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>{{ b.tag_rfid }}</td>
-                        <td>{{ b.numero_serie|default:"-" }}</td>
-                        <td>{{ b.fabricante|default:"-" }}</td>
-                        <td>{{ b.tara|default:"-" }}</td>
+                {% if modo == "detalhado" %}
 
-                        <td>{{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
-                        <td>{{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                    {% comment %} {# ==========================================
+                       DETALHADO QR / BARCODE (LeituraCodigoBarra) + ENRIQUECIDO com Botijao
+                       ========================================== #} {% endcomment %}
+                    {% if detalhe_kind == "barcode_qr" %}
 
-                        <td>{{ b.penultima_envasadora|default:"-" }}</td>
-                        <td>{{ b.data_penultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>
+                        {% for l in leituras_barcode %}
+                            {% with b=botijao_por_codigo|get_item:l.codigo %}
+                            <tr>
+                                <td>{{ l.data_hora|localtime|date:"d/m/Y H:i" }}</td>
+                                <td>{{ l.codigo }}</td>
 
-                        <td>{{ b.ultima_envasadora|default:"-" }}</td>
-                        <td>{{ b.data_ultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>   
+                                <td>{% if b %}{{ b.numero_serie|default:"-" }}{% else %}-{% endif %}</td>
+                                <td>{% if b %}{{ b.fabricante|default:"-" }}{% else %}-{% endif %}</td>
+                                <td>{% if b %}{{ b.tara|default:"-" }}{% else %}-{% endif %}</td>
 
-                        <td>{{ b.get_status_display }}</td>
-                        <td>{{ b.get_status_requalificacao_display }}</td>
+                                <td>{% if b %}{{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}{% else %}-{% endif %}</td>
+                                <td>{% if b %}{{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}{% else %}-{% endif %}</td>
 
-                        <td>{{ b.num_leituras }}</td>
-                        <td>{{ b.data_cadastro|date:"d/m/Y H:i" }}</td>
+                                <td>{% if b %}{{ b.penultima_envasadora|default:"-" }}{% else %}-{% endif %}</td>
+                                <td>{% if b %}{{ b.data_penultimo_envasamento|date:"d/m/Y"|default:"-" }}{% else %}-{% endif %}</td>
 
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="15" class="text-center text-muted">Nenhum resultado encontrado.</td>
-                    </tr>
-                {% endfor %}
+                                <td>{% if b %}{{ b.ultima_envasadora|default:"-" }}{% else %}-{% endif %}</td>
+                                <td>{% if b %}{{ b.data_ultimo_envasamento|date:"d/m/Y"|default:"-" }}{% else %}-{% endif %}</td>
+
+                                <td>{% if b %}{{ b.get_status_display }}{% else %}-{% endif %}</td>
+                                <td>{% if b %}{{ b.get_status_requalificacao_display }}{% else %}-{% endif %}</td>
+                                <td>1</td>
+                                <td>{% if b %}{{ b.data_cadastro|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
+                            </tr>
+                            {% endwith %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="15" class="text-center text-muted">Nenhum resultado encontrado.</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% comment %} {# ==========================================
+                       DETALHADO RFID (troca) => LogAuditoria
+                       ========================================== #} {% endcomment %}
+                    {% else %}
+
+                        {% for e in eventos %}
+                            {% with b=e.botijao %}
+                            <tr>
+                                <td>{{ e.data_hora|localtime|date:"d/m/Y H:i" }}</td>
+                                <td>{{ b.tag_rfid }}</td>
+                                <td>{{ b.numero_serie|default:"-" }}</td>
+                                <td>{{ b.fabricante|default:"-" }}</td>
+                                <td>{{ b.tara|default:"-" }}</td>
+
+                                <td>{{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                                <td>{{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+
+                                <td>{{ e.dados_novos.penultima_envasadora|default:"-" }}</td>
+                                <td>{{ e.dados_novos.data_penultimo_envasamento|default:"-" }}</td>
+
+                                <td>{{ e.dados_novos.ultima_envasadora|default:"-" }}</td>
+                                <td>{{ e.dados_novos.data_ultimo_envasamento|default:"-" }}</td>
+
+                                <td>
+                                    {{ e.dados_anteriores.ultima_envasadora|default:"-" }}
+                                    →
+                                    {{ e.dados_novos.ultima_envasadora|default:"-" }}
+                                </td>
+
+                                <td>{{ b.get_status_display }}</td>
+                                <td>{{ b.get_status_requalificacao_display }}</td>
+
+                                <td>1</td>
+                                <td>{{ b.data_cadastro|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endwith %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="16" class="text-center text-muted">Nenhum resultado encontrado.</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% endif %}
+
+                {% else %}
+
+                    {% comment %} {# ==========================================
+                       CONSOLIDADO => Botijao
+                       ========================================== #} {% endcomment %}
+                    {% for b in botijoes %}
+                        <tr>
+                            <td>
+                                {% if b.ultima_leitura %}
+                                    {{ b.ultima_leitura|date:"d/m/Y H:i" }}
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>{{ b.tag_rfid }}</td>
+                            <td>{{ b.numero_serie|default:"-" }}</td>
+                            <td>{{ b.fabricante|default:"-" }}</td>
+                            <td>{{ b.tara|default:"-" }}</td>
+
+                            <td>{{ b.data_ultima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+                            <td>{{ b.data_proxima_requalificacao|date:"d/m/Y"|default:"-" }}</td>
+
+                            <td>{{ b.penultima_envasadora|default:"-" }}</td>
+                            <td>{{ b.data_penultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>
+
+                            <td>{{ b.ultima_envasadora|default:"-" }}</td>
+                            <td>{{ b.data_ultimo_envasamento|date:"d/m/Y"|default:"-" }}</td>
+
+                            <td>{{ b.get_status_display }}</td>
+                            <td>{{ b.get_status_requalificacao_display }}</td>
+
+                            <td>{{ b.num_leituras }}</td>
+                            <td>{{ b.data_cadastro|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="15" class="text-center text-muted">Nenhum resultado encontrado.</td>
+                        </tr>
+                    {% endfor %}
+
+                {% endif %}
                 </tbody>
 
             </table>

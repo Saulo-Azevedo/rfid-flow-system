@@ -8,7 +8,8 @@ from rest_framework import serializers
 
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
 
-from .models import Botijao, LeituraRFID, LogAuditoria
+
+from .models import Botijao, LeituraRFID, LogAuditoria, LeituraCodigoBarra
 from .forms import BotijaoForm
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -301,87 +302,188 @@ RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$"
 
 @login_required
 def relatorios(request):
-    status = request.GET.get("status", "")
-    data_inicio = request.GET.get("data_inicio", "")
-    data_fim = request.GET.get("data_fim", "")
-    data_tipo = (
-        request.GET.get("data_tipo") or "cadastro"
-    ).strip()  # "cadastro" | "leitura"
-    tipo = request.GET.get("tipo", "")  # "" | "rfid" | "barcode"
+    status = (request.GET.get("status") or "").strip()
+    data_inicio = (request.GET.get("data_inicio") or "").strip()
+    data_fim = (request.GET.get("data_fim") or "").strip()
+    data_tipo = (request.GET.get("data_tipo") or "cadastro").strip()  # cadastro | leitura
+    tipo = (request.GET.get("tipo") or "").strip()  # "" | rfid | barcode | qr
+    modo = (request.GET.get("modo") or "consolidado").strip()  # consolidado | detalhado
 
-    botijoes = Botijao.objects.filter(deletado=False).annotate(
-        num_leituras=Count("leituras")
+    # Regras (sem campo novo) — baseadas no que existe no seu banco
+    RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$|^E200[0-9A-Fa-f]+$"
+    QR_DECODED_REGEX = r"^\d{9}-\d{3}$"
+    BARCODE_REGEX = r"^\d{8,14}$"
+
+    def _lixo_q(prefix: str):
+        return (
+            Q(**{f"{prefix}tag_rfid__iexact": "Última leitura:"})
+            | Q(**{f"{prefix}tag_rfid__icontains": "Pesquisar ou digitar URL"})
+            | Q(**{f"{prefix}tag_rfid__icontains": "\ufeff"})
+        )
+
+    # =====================================================
+    # CONSOLIDADO
+    # =====================================================
+    if modo != "detalhado":
+        botijoes = (
+            Botijao.objects.filter(deletado=False)
+            .exclude(_lixo_q(""))
+            .annotate(num_leituras=Count("leituras"))
+        )
+
+        if status:
+            botijoes = botijoes.filter(status=status)
+
+        if data_inicio or data_fim:
+            if data_tipo == "leitura":
+                if data_inicio:
+                    botijoes = botijoes.filter(leituras__data_hora__date__gte=data_inicio)
+                if data_fim:
+                    botijoes = botijoes.filter(leituras__data_hora__date__lte=data_fim)
+                botijoes = botijoes.distinct()
+            else:
+                if data_inicio:
+                    botijoes = botijoes.filter(data_cadastro__date__gte=data_inicio)
+                if data_fim:
+                    botijoes = botijoes.filter(data_cadastro__date__lte=data_fim)
+
+        # tipo
+        if tipo == "rfid":
+            botijoes = botijoes.filter(tag_rfid__regex=RFID_TAG_REGEX)
+        elif tipo == "qr":
+            botijoes = botijoes.exclude(tag_rfid__regex=RFID_TAG_REGEX).filter(tag_rfid__regex=QR_DECODED_REGEX)
+        elif tipo == "barcode":
+            botijoes = (
+                botijoes.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+                .exclude(tag_rfid__regex=QR_DECODED_REGEX)
+                .filter(tag_rfid__regex=BARCODE_REGEX)
+            )
+
+        botijoes = botijoes.order_by("-data_cadastro")
+        total_leituras = sum(b.num_leituras for b in botijoes)
+
+        return render(
+            request,
+            "rfid/relatorios.html",
+            {
+                "modo": modo,
+                "botijoes": botijoes,
+                "eventos": None,
+                "leituras_barcode": None,
+                "detalhe_kind": None,
+                "total_filtrado": botijoes.count(),
+                "total_leituras": total_leituras,
+                "status_choices": Botijao.STATUS_CHOICES,
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "data_tipo": data_tipo,
+                "status_selected": status,
+                "tipo_selected": tipo,
+            },
+        )
+
+    # =====================================================
+    # DETALHADO
+    # - RFID: mostra eventos de troca (LogAuditoria)
+    # - QR/BARCODE: mostra leituras reais (LeituraCodigoBarra)
+    # =====================================================
+
+    # Detalhado para QR/Barcode: usa LeituraCodigoBarra (é o que seu PDA grava)
+    if tipo in ("qr", "barcode") or tipo == "":
+        leituras = LeituraCodigoBarra.objects.all()
+
+        # filtrar QR vs barcode no campo "codigo" (que hoje está decodificado ou EAN)
+        if tipo == "qr":
+            leituras = leituras.filter(codigo__regex=QR_DECODED_REGEX)
+        elif tipo == "barcode":
+            leituras = leituras.filter(codigo__regex=BARCODE_REGEX)
+
+        # data filtro
+        if data_inicio:
+            leituras = leituras.filter(data_hora__date__gte=data_inicio)
+        if data_fim:
+            leituras = leituras.filter(data_hora__date__lte=data_fim)
+
+        # status não existe em LeituraCodigoBarra (sem FK)
+        # então só aplicamos status se conseguirmos mapear pelo Botijao.tag_rfid == leitura.codigo
+        # (isso funciona porque você cria Botijao(tag_rfid=codigo) no endpoint)
+        if status:
+            # pega tags de botijões com status e cruza com leituras
+            tags = Botijao.objects.filter(deletado=False, status=status).values_list("tag_rfid", flat=True)
+            leituras = leituras.filter(codigo__in=list(tags))
+
+        leituras = leituras.order_by("-data_hora")
+
+        return render(
+            request,
+            "rfid/relatorios.html",
+            {
+                "modo": modo,
+                "botijoes": None,
+                "eventos": None,
+                "leituras_barcode": leituras,
+                "detalhe_kind": "barcode_qr",
+                "total_filtrado": leituras.count(),
+                "total_leituras": leituras.count(),
+                "status_choices": Botijao.STATUS_CHOICES,
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "data_tipo": data_tipo,
+                "status_selected": status,
+                "tipo_selected": tipo,
+            },
+        )
+
+    # Detalhado para RFID: mantém sua lógica de “troca distribuidora”
+    eventos = (
+        LogAuditoria.objects.select_related("botijao")
+        .filter(
+            botijao__deletado=False,
+            acao="leitura",
+            descricao__startswith="Envasadora atualizada automaticamente",
+        )
+        .exclude(_lixo_q("botijao__"))
     )
 
-    # FILTRO POR STATUS
     if status:
-        botijoes = botijoes.filter(status=status)
+        eventos = eventos.filter(botijao__status=status)
 
-    # FILTROS POR DATA (CADASTRO OU LEITURA)
     if data_inicio or data_fim:
         if data_tipo == "leitura":
             if data_inicio:
-                botijoes = botijoes.filter(leituras__data_hora__date__gte=data_inicio)
+                eventos = eventos.filter(data_hora__date__gte=data_inicio)
             if data_fim:
-                botijoes = botijoes.filter(leituras__data_hora__date__lte=data_fim)
-            botijoes = botijoes.distinct()
+                eventos = eventos.filter(data_hora__date__lte=data_fim)
         else:
-            # cadastro (padrão antigo)
             if data_inicio:
-                botijoes = botijoes.filter(data_cadastro__date__gte=data_inicio)
+                eventos = eventos.filter(botijao__data_cadastro__date__gte=data_inicio)
             if data_fim:
-                botijoes = botijoes.filter(data_cadastro__date__lte=data_fim)
+                eventos = eventos.filter(botijao__data_cadastro__date__lte=data_fim)
 
-    # FILTRO POR TIPO (RFID x BARCODE)
     if tipo == "rfid":
-        botijoes = botijoes.filter(tag_rfid__regex=RFID_TAG_REGEX)
-    elif tipo == "barcode":
-        botijoes = botijoes.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+        eventos = eventos.filter(botijao__tag_rfid__regex=RFID_TAG_REGEX)
 
-    botijoes = botijoes.order_by("-data_cadastro")
+    eventos = eventos.order_by("-data_hora")
 
-    # TOTAL DE LEITURAS SOMADAS (mantive igual seu padrão)
-    total_leituras = sum([b.num_leituras for b in botijoes])
-
-    context = {
-        "botijoes": botijoes,
-        "total_filtrado": botijoes.count(),
-        "total_leituras": total_leituras,
-        "status_choices": Botijao.STATUS_CHOICES,
-        "data_inicio": data_inicio,
-        "data_fim": data_fim,
-        "data_tipo": data_tipo,
-        "status_selected": status,
-        "tipo_selected": tipo,  # mantém o select marcado no template
-    }
-
-    return render(request, "rfid/relatorios.html", context)
-
-    # ✅ NOVO: FILTRO POR TIPO (RFID x BARCODE)
-    if tipo == "rfid":
-        botijoes = botijoes.filter(tag_rfid__regex=RFID_TAG_REGEX)
-    elif tipo == "barcode":
-        botijoes = botijoes.exclude(tag_rfid__regex=RFID_TAG_REGEX)
-
-    botijoes = botijoes.order_by("-data_cadastro")
-
-    # TOTAL DE LEITURAS SOMADAS
-    total_leituras = sum([b.num_leituras for b in botijoes])
-
-    context = {
-        "botijoes": botijoes,
-        "total_filtrado": botijoes.count(),
-        "total_leituras": total_leituras,
-        "status_choices": Botijao.STATUS_CHOICES,
-        "data_inicio": data_inicio,
-        "data_fim": data_fim,
-        "data_tipo": data_tipo,
-        "status_selected": status,
-        # ✅ NOVO: pra manter o select marcado no template
-        "tipo_selected": tipo,
-    }
-
-    return render(request, "rfid/relatorios.html", context)
+    return render(
+        request,
+        "rfid/relatorios.html",
+        {
+            "modo": modo,
+            "botijoes": None,
+            "eventos": eventos,
+            "leituras_barcode": None,
+            "detalhe_kind": "rfid_troca",
+            "total_filtrado": eventos.count(),
+            "total_leituras": eventos.count(),
+            "status_choices": Botijao.STATUS_CHOICES,
+            "data_inicio": data_inicio,
+            "data_fim": data_fim,
+            "data_tipo": data_tipo,
+            "status_selected": status,
+            "tipo_selected": tipo,
+        },
+    )
 
 
 @login_required
@@ -424,26 +526,194 @@ def relatorios_api(request):
 # Exportar Excel
 # -----------------------
 
-
 @login_required
 def exportar_excel(request):
     hoje = timezone.now().date()
 
-    # ✅ mesmos filtros do relatório
-    data_tipo = (request.GET.get("data_tipo") or "cadastro").strip()
-    status = request.GET.get("status", "")
-    data_inicio = request.GET.get("data_inicio", "")
-    data_fim = request.GET.get("data_fim", "")
-    tipo = request.GET.get("tipo", "")  # "", "rfid", "barcode"
+    # filtros iguais ao relatório
+    data_tipo = (request.GET.get("data_tipo") or "cadastro").strip()  # cadastro | leitura
+    status = (request.GET.get("status") or "").strip()
+    data_inicio = (request.GET.get("data_inicio") or "").strip()
+    data_fim = (request.GET.get("data_fim") or "").strip()
+    tipo = (request.GET.get("tipo") or "").strip()  # "" | rfid | barcode | qr
+    modo = (request.GET.get("modo") or "consolidado").strip()  # consolidado | detalhado
 
-    # queryset base
-    qs = Botijao.objects.filter(deletado=False).annotate(num_leituras=Count("leituras"))
+    # regras (sem campo novo) - MESMAS do relatorios()
+    RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$|^E200[0-9A-Fa-f]+$"
+    QR_DECODED_REGEX = r"^\d{9}-\d{3}$"
+    BARCODE_REGEX = r"^\d{8,14}$"
 
-    # status
+    def _lixo_q(prefix: str):
+        # prefix = "" (Botijao) ou "botijao__" (LogAuditoria)
+        return (
+            Q(**{f"{prefix}tag_rfid__iexact": "Última leitura:"})
+            | Q(**{f"{prefix}tag_rfid__icontains": "Pesquisar ou digitar URL"})
+            | Q(**{f"{prefix}tag_rfid__icontains": "\ufeff"})
+        )
+
+    def _fmt_date(d):
+        return d.strftime("%d/%m/%Y") if d else "-"
+
+    def _fmt_dt(dt):
+        if not dt:
+            return "-"
+        return timezone.localtime(dt).strftime("%d/%m/%Y %H:%M")
+
+    def _fmt_iso_date(s):
+        # datas no LogAuditoria (dados_novos/anteriores) às vezes vêm "YYYY-MM-DD"
+        if not s:
+            return "-"
+        if isinstance(s, str):
+            try:
+                y, m, d = s.split("-")
+                if len(y) == 4 and len(m) == 2 and len(d) == 2:
+                    return f"{d}/{m}/{y}"
+            except Exception:
+                pass
+        return str(s)
+
+    # ============================================================
+    # MODO DETALHADO (1 linha = 1 evento)
+    # ============================================================
+    if modo == "detalhado":
+        eventos = (
+            LogAuditoria.objects.select_related("botijao")
+            .filter(
+                botijao__deletado=False,
+                acao="leitura",
+                descricao__startswith="Envasadora atualizada automaticamente",
+            )
+            .exclude(_lixo_q("botijao__"))
+        )
+
+        if status:
+            eventos = eventos.filter(botijao__status=status)
+
+        # DATA (cadastro ou leitura)
+        if data_inicio or data_fim:
+            if data_tipo == "leitura":
+                if data_inicio:
+                    eventos = eventos.filter(data_hora__date__gte=data_inicio)
+                if data_fim:
+                    eventos = eventos.filter(data_hora__date__lte=data_fim)
+            else:
+                if data_inicio:
+                    eventos = eventos.filter(botijao__data_cadastro__date__gte=data_inicio)
+                if data_fim:
+                    eventos = eventos.filter(botijao__data_cadastro__date__lte=data_fim)
+
+        # TIPO (rfid / qr / barcode)
+        if tipo == "rfid":
+            eventos = eventos.filter(botijao__tag_rfid__regex=RFID_TAG_REGEX)
+        elif tipo == "qr":
+            eventos = eventos.exclude(botijao__tag_rfid__regex=RFID_TAG_REGEX).filter(
+                botijao__tag_rfid__regex=QR_DECODED_REGEX
+            )
+        elif tipo == "barcode":
+            eventos = (
+                eventos.exclude(botijao__tag_rfid__regex=RFID_TAG_REGEX)
+                .exclude(botijao__tag_rfid__regex=QR_DECODED_REGEX)
+                .filter(botijao__tag_rfid__regex=BARCODE_REGEX)
+            )
+
+        eventos = eventos.order_by("-data_hora")
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Relatório Detalhado"
+
+        headers = [
+            "Última Leitura",
+            "Tag",
+            "Nº Série",
+            "Fabricante",
+            "Tara",
+            "Últ. Requalificação",
+            "Próx. Requalificação",
+            "Penúlt. Envasadora",
+            "Data Penúltimo Env.",
+            "Últ. Envasadora",
+            "Data Último Env.",
+            "Troca Distribuidora",
+            "Status",
+            "Status Requalificação",
+            "Total Leituras",
+            "Data Cadastro",
+        ]
+        ws.append(headers)
+
+        header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        for e in eventos:
+            b = e.botijao
+            antes = e.dados_anteriores or {}
+            depois = e.dados_novos or {}
+
+            troca = f"{antes.get('ultima_envasadora') or '-'} → {depois.get('ultima_envasadora') or '-'}"
+
+            ws.append(
+                [
+                    _fmt_dt(e.data_hora),
+                    b.tag_rfid,
+                    b.numero_serie or "-",
+                    b.fabricante or "-",
+                    float(b.tara) if b.tara is not None else "-",
+                    _fmt_date(b.data_ultima_requalificacao),
+                    _fmt_date(b.data_proxima_requalificacao),
+                    depois.get("penultima_envasadora") or (b.penultima_envasadora or "-"),
+                    _fmt_iso_date(depois.get("data_penultimo_envasamento"))
+                    if depois.get("data_penultimo_envasamento")
+                    else _fmt_date(b.data_penultimo_envasamento),
+                    depois.get("ultima_envasadora") or (b.ultima_envasadora or "-"),
+                    _fmt_iso_date(depois.get("data_ultimo_envasamento"))
+                    if depois.get("data_ultimo_envasamento")
+                    else _fmt_date(b.data_ultimo_envasamento),
+                    troca,
+                    b.get_status_display(),
+                    b.get_status_requalificacao_display(),
+                    1,
+                    _fmt_dt(b.data_cadastro),
+                ]
+            )
+
+        # auto width
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    max_length = max(max_length, len(str(cell.value)))
+                except Exception:
+                    pass
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        filename = f"relatorio_detalhado_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
+    # ============================================================
+    # MODO CONSOLIDADO (1 linha = 1 botijão)
+    # ============================================================
+    qs = (
+        Botijao.objects.filter(deletado=False)
+        .exclude(_lixo_q(""))
+        .annotate(num_leituras=Count("leituras"))
+    )
+
     if status:
         qs = qs.filter(status=status)
 
-    # FILTRO POR DATA (CADASTRO OU LEITURA)
+    # DATA (cadastro ou leitura)
     if data_inicio or data_fim:
         if data_tipo == "leitura":
             if data_inicio:
@@ -452,43 +722,49 @@ def exportar_excel(request):
                 qs = qs.filter(leituras__data_hora__date__lte=data_fim)
             qs = qs.distinct()
         else:
-            # cadastro (padrão antigo)
             if data_inicio:
                 qs = qs.filter(data_cadastro__date__gte=data_inicio)
             if data_fim:
                 qs = qs.filter(data_cadastro__date__lte=data_fim)
 
-    # tipo (RFID x Barcode)
+    # TIPO (rfid / qr / barcode)
     if tipo == "rfid":
         qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
+    elif tipo == "qr":
+        qs = qs.exclude(tag_rfid__regex=RFID_TAG_REGEX).filter(tag_rfid__regex=QR_DECODED_REGEX)
     elif tipo == "barcode":
-        qs = qs.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+        qs = (
+            qs.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+            .exclude(tag_rfid__regex=QR_DECODED_REGEX)
+            .filter(tag_rfid__regex=BARCODE_REGEX)
+        )
 
     qs = qs.order_by("tag_rfid")
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Cilindros RFID"
+    ws.title = "Relatório Consolidado"
 
     headers = [
-        "Tag RFID",
+        "Última Leitura",
+        "Tag",
+        "Nº Série",
         "Fabricante",
-        "Número de Série",
-        "Tara (kg)",
-        "Última requalificação",
-        "Próxima requalificação",
-        "Dias para requalificação",
-        "Status requalificação",
-        "Penúltima envasadora",
-        "Data penúltimo envasamento",
-        "Última envasadora",
-        "Data último envasamento",
+        "Tara",
+        "Últ. Requalificação",
+        "Próx. Requalificação",
+        "Penúlt. Envasadora",
+        "Data Penúltimo Env.",
+        "Últ. Envasadora",
+        "Data Último Env.",
+        "Status",
+        "Status Requalificação",
+        "Total Leituras",
+        "Data Cadastro",
     ]
     ws.append(headers)
 
-    header_fill = PatternFill(
-        start_color="00D4FF", end_color="00D4FF", fill_type="solid"
-    )
+    header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF", size=12)
 
     for cell in ws[1]:
@@ -497,41 +773,23 @@ def exportar_excel(request):
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     for c in qs:
-        status_requal = _classificar_requal(c, hoje)
-        dias = None
-        if c.data_proxima_requalificacao:
-            dias = (c.data_proxima_requalificacao - hoje).days
-
         ws.append(
             [
+                _fmt_dt(getattr(c, "ultima_leitura", None)),
                 c.tag_rfid,
-                c.fabricante or "-",
                 c.numero_serie or "-",
+                c.fabricante or "-",
                 float(c.tara) if c.tara is not None else "-",
-                (
-                    c.data_ultima_requalificacao.strftime("%d/%m/%Y")
-                    if c.data_ultima_requalificacao
-                    else "-"
-                ),
-                (
-                    c.data_proxima_requalificacao.strftime("%d/%m/%Y")
-                    if c.data_proxima_requalificacao
-                    else "-"
-                ),
-                dias if dias is not None else "-",
-                status_requal,
+                _fmt_date(c.data_ultima_requalificacao),
+                _fmt_date(c.data_proxima_requalificacao),
                 c.penultima_envasadora or "-",
-                (
-                    c.data_penultimo_envasamento.strftime("%d/%m/%Y")
-                    if c.data_penultimo_envasamento
-                    else "-"
-                ),
+                _fmt_date(c.data_penultimo_envasamento),
                 c.ultima_envasadora or "-",
-                (
-                    c.data_ultimo_envasamento.strftime("%d/%m/%Y")
-                    if c.data_ultimo_envasamento
-                    else "-"
-                ),
+                _fmt_date(c.data_ultimo_envasamento),
+                c.get_status_display(),
+                c.get_status_requalificacao_display(),
+                c.num_leituras,
+                _fmt_dt(c.data_cadastro),
             ]
         )
 
@@ -549,10 +807,12 @@ def exportar_excel(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    filename = f"relatorio_cilindros_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"relatorio_consolidado_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
+
+
 
 
 # -----------------------
@@ -678,54 +938,64 @@ def buscar_historico(request):
 # Enviar relatório por e-mail
 # -----------------------
 
-
 @login_required
 def enviar_email_view(request):
-    # ✅ Captura filtros (GET quando vem de Relatórios, POST quando envia o form)
-    data_tipo = (
-        request.POST.get("data_tipo") or request.GET.get("data_tipo") or "cadastro"
-    ).strip()
+    from io import BytesIO
+    from urllib.parse import urlencode
 
-    tipo = (
-        request.POST.get("tipo") or request.GET.get("tipo") or ""
-    ).strip()  # "", "rfid", "barcode"
-    status_filtro = (
-        request.POST.get("status") or request.GET.get("status") or ""
-    ).strip()
-    data_inicio = (
-        request.POST.get("data_inicio") or request.GET.get("data_inicio") or ""
-    ).strip()
-    data_fim = (
-        request.POST.get("data_fim") or request.GET.get("data_fim") or ""
-    ).strip()
+    # filtros (GET ou POST)
+    data_tipo = (request.POST.get("data_tipo") or request.GET.get("data_tipo") or "cadastro").strip()
+    tipo = (request.POST.get("tipo") or request.GET.get("tipo") or "").strip()  # "" | rfid | barcode | qr
+    status_filtro = (request.POST.get("status") or request.GET.get("status") or "").strip()
+    data_inicio = (request.POST.get("data_inicio") or request.GET.get("data_inicio") or "").strip()
+    data_fim = (request.POST.get("data_fim") or request.GET.get("data_fim") or "").strip()
+    modo = (request.POST.get("modo") or request.GET.get("modo") or "consolidado").strip()  # consolidado | detalhado
 
-    # ✅ Resumo humano dos filtros (para mostrar no template e também no corpo do e-mail)
+    # regras (sem campo novo) - MESMAS do relatorios()
+    RFID_TAG_REGEX = r"^[0-9A-Fa-f]{24}$|^[0-9A-Fa-f]{32}$|^E200[0-9A-Fa-f]+$"
+    QR_DECODED_REGEX = r"^\d{9}-\d{3}$"
+    BARCODE_REGEX = r"^\d{8,14}$"
+
+    def _lixo_q(prefix: str):
+        return (
+            Q(**{f"{prefix}tag_rfid__iexact": "Última leitura:"})
+            | Q(**{f"{prefix}tag_rfid__icontains": "Pesquisar ou digitar URL"})
+            | Q(**{f"{prefix}tag_rfid__icontains": "\ufeff"})
+        )
+
+    # labels humanos
     if tipo == "rfid":
         tipo_label = "Somente RFID"
     elif tipo == "barcode":
         tipo_label = "Somente Código de Barras"
+    elif tipo == "qr":
+        tipo_label = "Somente Código QR"
     else:
         tipo_label = "Todos"
 
     status_label = status_filtro if status_filtro else "Todos"
-
-    if data_inicio or data_fim:
-        periodo_label = f"{data_inicio or '—'} até {data_fim or '—'}"
-    else:
-        periodo_label = "Todos"
-
-    data_tipo_label = (
-        "Data da Leitura" if data_tipo == "leitura" else "Data de Cadastro"
-    )
+    periodo_label = f"{data_inicio or '—'} até {data_fim or '—'}" if (data_inicio or data_fim) else "Todos"
+    data_tipo_label = "Data da Leitura" if data_tipo == "leitura" else "Data de Cadastro"
+    modo_label = "Detalhado (por leitura)" if modo == "detalhado" else "Consolidado (por botijão)"
 
     filtro_resumo = (
         f"Tipo: {tipo_label} | "
         f"Status: {status_label} | "
+        f"Modo: {modo_label} | "
         f"Data: {data_tipo_label} | "
         f"Período: {periodo_label}"
     )
 
-    # Helper: renderiza o template SEM perder filtros
+    filtros_qs = {
+        "tipo": tipo,
+        "status": status_filtro,
+        "modo": modo,
+        "data_tipo": data_tipo,
+        "data_inicio": data_inicio,
+        "data_fim": data_fim,
+    }
+    redirect_relatorios = f"/relatorios/?{urlencode(filtros_qs)}"
+
     def render_pagina(destinatario_value=""):
         return render(
             request,
@@ -735,82 +1005,114 @@ def enviar_email_view(request):
                 "status_selected": status_filtro,
                 "data_inicio": data_inicio,
                 "data_fim": data_fim,
+                "data_tipo": data_tipo,
+                "modo": modo,
                 "filtro_resumo": filtro_resumo,
-                # ✅ para manter o campo preenchido caso dê erro
                 "destinatario_value": destinatario_value,
             },
         )
 
-    # ✅ Se for GET: só renderiza a página já mostrando o resumo e preservando filtros
     if request.method != "POST":
         return render_pagina()
 
-    # ---------------------------
-    # POST: enviar e-mail
-    # ---------------------------
-    destinatario = request.POST.get("destinatario", "").strip()
-
+    destinatario = (request.POST.get("destinatario") or "").strip()
     if not destinatario:
         messages.error(request, "Email de destinatário é obrigatório.")
-        # ✅ não redireciona (senão perde filtros)
         return render_pagina(destinatario_value=destinatario)
 
+    def _fmt_date(d):
+        return d.strftime("%d/%m/%Y") if d else "-"
+
+    def _fmt_dt(dt):
+        if not dt:
+            return "-"
+        return timezone.localtime(dt).strftime("%d/%m/%Y %H:%M")
+
+    def _fmt_iso_date(s):
+        if not s:
+            return "-"
+        if isinstance(s, str):
+            try:
+                y, m, d = s.split("-")
+                if len(y) == 4 and len(m) == 2 and len(d) == 2:
+                    return f"{d}/{m}/{y}"
+            except Exception:
+                pass
+        return str(s)
+
     try:
-        from io import BytesIO
-
-        hoje = timezone.now().date()
-
-        # ✅ Base queryset (igual exportar_excel)
-        qs = Botijao.objects.filter(deletado=False).annotate(
-            num_leituras=Count("leituras")
-        )
-
-        # filtro status
-        if status_filtro:
-            qs = qs.filter(status=status_filtro)
-
-        # FILTRO POR DATA (CADASTRO OU LEITURA)
-        if data_inicio or data_fim:
-            if data_tipo == "leitura":
-                if data_inicio:
-                    qs = qs.filter(leituras__data_hora__date__gte=data_inicio)
-                if data_fim:
-                    qs = qs.filter(leituras__data_hora__date__lte=data_fim)
-                qs = qs.distinct()
-            else:
-                if data_inicio:
-                    qs = qs.filter(data_cadastro__date__gte=data_inicio)
-                if data_fim:
-                    qs = qs.filter(data_cadastro__date__lte=data_fim)
-
-        # filtro tipo (rfid x barcode)
-        if tipo == "rfid":
-            qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
-        elif tipo == "barcode":
-            qs = qs.exclude(tag_rfid__regex=RFID_TAG_REGEX)
-
-        qs = qs.order_by("tag_rfid")
-
-        # ---------------------------
-        # ✅ Gera Excel em memória
-        # ---------------------------
         wb = Workbook()
         ws = wb.active
 
-        header_fill = PatternFill(
-            start_color="00D4FF", end_color="00D4FF", fill_type="solid"
-        )
+        header_fill = PatternFill(start_color="00D4FF", end_color="00D4FF", fill_type="solid")
         header_font = Font(bold=True, color="FFFFFF", size=12)
 
-        # ✅ Se tipo=barcode: gera planilha enxuta "de outra forma"
-        if tipo == "barcode":
-            ws.title = "Códigos de Barras"
+        total_itens = 0
+        total_leituras_relatorio = 0
+
+        # ============================================================
+        # DETALHADO
+        # ============================================================
+        if modo == "detalhado":
+            ws.title = "Relatório Detalhado"
+
+            eventos = (
+                LogAuditoria.objects.select_related("botijao")
+                .filter(
+                    botijao__deletado=False,
+                    acao="leitura",
+                    descricao__startswith="Envasadora atualizada automaticamente",
+                )
+                .exclude(_lixo_q("botijao__"))
+            )
+
+            if status_filtro:
+                eventos = eventos.filter(botijao__status=status_filtro)
+
+            if data_inicio or data_fim:
+                if data_tipo == "leitura":
+                    if data_inicio:
+                        eventos = eventos.filter(data_hora__date__gte=data_inicio)
+                    if data_fim:
+                        eventos = eventos.filter(data_hora__date__lte=data_fim)
+                else:
+                    if data_inicio:
+                        eventos = eventos.filter(botijao__data_cadastro__date__gte=data_inicio)
+                    if data_fim:
+                        eventos = eventos.filter(botijao__data_cadastro__date__lte=data_fim)
+
+            if tipo == "rfid":
+                eventos = eventos.filter(botijao__tag_rfid__regex=RFID_TAG_REGEX)
+            elif tipo == "qr":
+                eventos = eventos.exclude(botijao__tag_rfid__regex=RFID_TAG_REGEX).filter(
+                    botijao__tag_rfid__regex=QR_DECODED_REGEX
+                )
+            elif tipo == "barcode":
+                eventos = (
+                    eventos.exclude(botijao__tag_rfid__regex=RFID_TAG_REGEX)
+                    .exclude(botijao__tag_rfid__regex=QR_DECODED_REGEX)
+                    .filter(botijao__tag_rfid__regex=BARCODE_REGEX)
+                )
+
+            eventos = eventos.order_by("-data_hora")
+
             headers = [
-                "Código de Barras",
+                "Última Leitura",
+                "Tag",
+                "Nº Série",
+                "Fabricante",
+                "Tara",
+                "Últ. Requalificação",
+                "Próx. Requalificação",
+                "Penúlt. Envasadora",
+                "Data Penúltimo Env.",
+                "Últ. Envasadora",
+                "Data Último Env.",
+                "Troca Distribuidora",
                 "Status",
+                "Status Requalificação",
                 "Total Leituras",
                 "Data Cadastro",
-                "Observação",
             ]
             ws.append(headers)
 
@@ -819,44 +1121,98 @@ def enviar_email_view(request):
                 cell.font = header_font
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            for b in qs:
+            for e in eventos:
+                b = e.botijao
+                antes = e.dados_anteriores or {}
+                depois = e.dados_novos or {}
+                troca = f"{antes.get('ultima_envasadora') or '-'} → {depois.get('ultima_envasadora') or '-'}"
+
                 ws.append(
                     [
+                        _fmt_dt(e.data_hora),
                         b.tag_rfid,
+                        b.numero_serie or "-",
+                        b.fabricante or "-",
+                        float(b.tara) if b.tara is not None else "-",
+                        _fmt_date(b.data_ultima_requalificacao),
+                        _fmt_date(b.data_proxima_requalificacao),
+                        depois.get("penultima_envasadora") or (b.penultima_envasadora or "-"),
+                        _fmt_iso_date(depois.get("data_penultimo_envasamento"))
+                        if depois.get("data_penultimo_envasamento")
+                        else _fmt_date(b.data_penultimo_envasamento),
+                        depois.get("ultima_envasadora") or (b.ultima_envasadora or "-"),
+                        _fmt_iso_date(depois.get("data_ultimo_envasamento"))
+                        if depois.get("data_ultimo_envasamento")
+                        else _fmt_date(b.data_ultimo_envasamento),
+                        troca,
                         b.get_status_display(),
-                        b.num_leituras,
-                        (
-                            b.data_cadastro.strftime("%d/%m/%Y %H:%M")
-                            if b.data_cadastro
-                            else "-"
-                        ),
-                        getattr(b, "observacao", None)
-                        or getattr(b, "observacao_interna", None)
-                        or "-",
+                        b.get_status_requalificacao_display(),
+                        1,
+                        _fmt_dt(b.data_cadastro),
                     ]
                 )
 
-            filename = (
-                f"relatorio_barcode_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            total_itens = eventos.count()
+            total_leituras_relatorio = total_itens
+            filename = f"relatorio_detalhado_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        # ============================================================
+        # CONSOLIDADO
+        # ============================================================
+        else:
+            ws.title = "Relatório Consolidado"
+
+            qs = (
+                Botijao.objects.filter(deletado=False)
+                .exclude(_lixo_q(""))
+                .annotate(num_leituras=Count("leituras"))
             )
 
-        else:
-            # RFID ou TODOS: mesma estrutura do seu exportar_excel atual
-            ws.title = "Cilindros RFID"
+            if status_filtro:
+                qs = qs.filter(status=status_filtro)
+
+            if data_inicio or data_fim:
+                if data_tipo == "leitura":
+                    if data_inicio:
+                        qs = qs.filter(leituras__data_hora__date__gte=data_inicio)
+                    if data_fim:
+                        qs = qs.filter(leituras__data_hora__date__lte=data_fim)
+                    qs = qs.distinct()
+                else:
+                    if data_inicio:
+                        qs = qs.filter(data_cadastro__date__gte=data_inicio)
+                    if data_fim:
+                        qs = qs.filter(data_cadastro__date__lte=data_fim)
+
+            if tipo == "rfid":
+                qs = qs.filter(tag_rfid__regex=RFID_TAG_REGEX)
+            elif tipo == "qr":
+                qs = qs.exclude(tag_rfid__regex=RFID_TAG_REGEX).filter(tag_rfid__regex=QR_DECODED_REGEX)
+            elif tipo == "barcode":
+                qs = (
+                    qs.exclude(tag_rfid__regex=RFID_TAG_REGEX)
+                    .exclude(tag_rfid__regex=QR_DECODED_REGEX)
+                    .filter(tag_rfid__regex=BARCODE_REGEX)
+                )
+
+            qs = qs.order_by("tag_rfid")
 
             headers = [
-                "Tag RFID",
+                "Última Leitura",
+                "Tag",
+                "Nº Série",
                 "Fabricante",
-                "Número de Série",
-                "Tara (kg)",
-                "Última requalificação",
-                "Próxima requalificação",
-                "Dias para requalificação",
-                "Status requalificação",
-                "Penúltima envasadora",
-                "Data penúltimo envasamento",
-                "Última envasadora",
-                "Data último envasamento",
+                "Tara",
+                "Últ. Requalificação",
+                "Próx. Requalificação",
+                "Penúlt. Envasadora",
+                "Data Penúltimo Env.",
+                "Últ. Envasadora",
+                "Data Último Env.",
+                "Status",
+                "Status Requalificação",
+                "Total Leituras",
+                "Data Cadastro",
             ]
             ws.append(headers)
 
@@ -866,47 +1222,29 @@ def enviar_email_view(request):
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
             for c in qs:
-                status_requal = _classificar_requal(c, hoje)
-                dias = None
-                if c.data_proxima_requalificacao:
-                    dias = (c.data_proxima_requalificacao - hoje).days
-
                 ws.append(
                     [
+                        _fmt_dt(getattr(c, "ultima_leitura", None)),
                         c.tag_rfid,
-                        c.fabricante or "-",
                         c.numero_serie or "-",
+                        c.fabricante or "-",
                         float(c.tara) if c.tara is not None else "-",
-                        (
-                            c.data_ultima_requalificacao.strftime("%d/%m/%Y")
-                            if c.data_ultima_requalificacao
-                            else "-"
-                        ),
-                        (
-                            c.data_proxima_requalificacao.strftime("%d/%m/%Y")
-                            if c.data_proxima_requalificacao
-                            else "-"
-                        ),
-                        dias if dias is not None else "-",
-                        status_requal,
+                        _fmt_date(c.data_ultima_requalificacao),
+                        _fmt_date(c.data_proxima_requalificacao),
                         c.penultima_envasadora or "-",
-                        (
-                            c.data_penultimo_envasamento.strftime("%d/%m/%Y")
-                            if c.data_penultimo_envasamento
-                            else "-"
-                        ),
+                        _fmt_date(c.data_penultimo_envasamento),
                         c.ultima_envasadora or "-",
-                        (
-                            c.data_ultimo_envasamento.strftime("%d/%m/%Y")
-                            if c.data_ultimo_envasamento
-                            else "-"
-                        ),
+                        _fmt_date(c.data_ultimo_envasamento),
+                        c.get_status_display(),
+                        c.get_status_requalificacao_display(),
+                        c.num_leituras,
+                        _fmt_dt(c.data_cadastro),
                     ]
                 )
 
-            filename = (
-                f"relatorio_cilindros_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            )
+            total_itens = qs.count()
+            total_leituras_relatorio = sum(int(b.num_leituras or 0) for b in qs)
+            filename = f"relatorio_consolidado_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
         # auto width
         for column in ws.columns:
@@ -923,30 +1261,19 @@ def enviar_email_view(request):
         wb.save(excel_buffer)
         excel_buffer.seek(0)
 
-        # ---------------------------
-        # ✅ Corpo do e-mail
-        # ---------------------------
-        data_hora_str = timezone.now().strftime("%d/%m/%Y às %H:%M")
-        total_cilindros = qs.count()
-
-        # Mantém seu total de leituras global (você já fazia assim)
-        total_leituras = LeituraRFID.objects.count()
+        data_hora_str = timezone.localtime(timezone.now()).strftime("%d/%m/%Y às %H:%M")
 
         corpo_html = f"""
         <!DOCTYPE html>
         <html lang="pt-BR">
-        <head>
-            <meta charset="UTF-8">
-        </head>
+        <head><meta charset="UTF-8"></head>
         <body>
             <div style="font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif;">
                 <h2>RFID FLOW - Relatório</h2>
                 <p>Relatório gerado em <strong>{data_hora_str}</strong>.</p>
                 <p><strong>Filtros aplicados:</strong> {filtro_resumo}</p>
-
-                <p><strong>Total de itens no relatório:</strong> {total_cilindros}</p>
-                <p><strong>Total de leituras RFID no sistema:</strong> {total_leituras}</p>
-
+                <p><strong>Total de itens no relatório:</strong> {total_itens}</p>
+                <p><strong>Total de leituras (conforme filtros):</strong> {total_leituras_relatorio}</p>
                 <p>Segue anexo o arquivo Excel.</p>
             </div>
         </body>
@@ -959,17 +1286,19 @@ def enviar_email_view(request):
             safe_from = safe_from.split("<", 1)[1].split(">", 1)[0].strip()
 
         logger.warning(
-            "EMAIL SEND ATTEMPT | raw_from=%r | safe_from=%r | to=%r | filename=%r",
+            "EMAIL SEND ATTEMPT | raw_from=%r | safe_from=%r | to=%r | filename=%r | modo=%r | tipo=%r",
             raw_from,
             safe_from,
             destinatario,
             filename,
+            modo,
+            tipo,
         )
 
         email = EmailMessage(
             subject=f"Relatório RFID Flow - {data_hora_str}",
             body=corpo_html,
-            from_email=safe_from,   # ✅ agora é o sender do settings/env (verificado)
+            from_email=safe_from,
             to=[destinatario],
         )
         email.content_subtype = "html"
@@ -980,16 +1309,15 @@ def enviar_email_view(request):
         )
         email.send(fail_silently=False)
 
-
         messages.success(request, f"Relatório enviado para {destinatario}.")
-        return redirect("relatorios")
+        return redirect(redirect_relatorios)
 
     except Exception as e:
-        logger.exception(
-            "Erro ao enviar email"
-        )  # ✅ isso imprime traceback completo no console
+        logger.exception("Erro ao enviar email")
         messages.error(request, f"Erro ao enviar email: {str(e)}")
         return render_pagina(destinatario_value=destinatario)
+
+
 
 
 
